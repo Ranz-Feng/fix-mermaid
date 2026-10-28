@@ -4,7 +4,13 @@
 
 # fix-mermaid.js
 
-**一个直接修复 LLM 生成的 Mermaid 语法错误的js库。**
+**本地修复 Mermaid，并固定输出 Markmap Markdown 的 JavaScript 工具。**
+
+本分支的 `fixMermaid` 每次调用只执行一次转换，不调用模型、不渲染图表、不管理重试。后端负责在原图渲染失败后调用工具，并根据后续渲染结果决定是否再次调用（业务上限 3 次）以及最终失败展示。
+
+成功结果为 `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`。`code` 是不带代码围栏的 Markdown，需要交给 **Markmap 渲染器**。`ok` 表示转换成功，实际显示是否成功仍需调用方验证。
+
+为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已接入新的 Markmap 输出；下方原作者在线地址不会随本地修改更新。
 
 <p align="center">
   <a href="https://xillkey.github.io/fix-mermaid/examples/demo.html"><strong>在线示例</strong></a>
@@ -18,7 +24,7 @@ LLM 大多数时候能写出正确的 Mermaid，但总有一部分图渲染失�
 
 ## 亮点
 
-- **前端直接可用**：它是一个只处理字符串的纯函数，不操作 DOM，没有依赖，也不需要构建。整个模块就是一个 ES Module 文件（约 28 KB，gzip 后约 10 KB），浏览器、Web Worker 和 Node 都能运行。
+- **本地可用**：工具只处理字符串，不操作 DOM，无运行时依赖；`src/fixMermaid.js` 和 `src/markmap-convert.js` 两个 ES Module 可运行于浏览器、Web Worker 和 Node。
 - **能修复大部分 LLM 输出的 Mermaid 语法错误**：覆盖流程图、时序图、类图、状态图、ER 图、饼图、柱状图/折线图（`xychart`）和脑图。在真实浏览器测试中，20 个可修复的错误图全部修复后正确渲染。
 - **不会改坏正确的图**：`safeRepairMermaid` 会先用你渲染时用的同一个 `mermaid.parse` 做校验。能通过的原样返回；修复后的代码也会再校验一次，通过了才使用。
 - **能发现"能解析但画错"的图**：比如脑图节点 `数学(微积分)` 能通过解析，但括号外的文字会丢掉。语义检查能识别这种写法并修复。
@@ -41,8 +47,9 @@ LLM 大多数时候能写出正确的 Mermaid，但总有一部分图渲染失�
 # 方式 A：从 GitHub 安装
 npm install github:xillkey/fix-mermaid
 
-# 方式 B：直接把文件复制进项目（没有任何依赖）
+# 方式 B：同时复制两个源码文件到同一目录（没有运行时依赖）
 curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/fixMermaid.js
+curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/markmap-convert.js
 ```
 
 ```html
@@ -60,20 +67,21 @@ curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/fixMermai
 import { fixMermaid } from 'fix-mermaid';
 
 const llmOutput = 'flowchart LR\nA【用户】——>B（登录服务）\nB --> C[调用接口(v2)]';
-const { code, changed, fixes } = fixMermaid(llmOutput);
+const { ok, format, code, changed, fixes, error } = fixMermaid(llmOutput);
 
 console.log(code);
-// flowchart LR
-// A["用户"]-->B("登录服务")
-// B --> C["调用接口(v2)"]
+// # 用户
+// - 登录服务
+//   - 调用接口\(v2\)
+console.log(format); // markmap
 console.log(fixes); // 命中的修复规则
 ```
 
 
 
-### 3. 推荐用法：校验 → 修复 → 再校验
+### 3. 兼容 API：保留 Mermaid 的校验 → 修复 → 再校验
 
-`fixMermaid` 每次都会执行规则。线上建议用 `safeRepairMermaid`，它只处理真正解析失败的代码：
+下例是原有 Mermaid 链路。新的后端工具接入请直接调用 `fixMermaid` 并使用返回的 `format` 和 `code`：
 
 ```js
 import mermaid from 'mermaid';
@@ -109,7 +117,7 @@ await renderMermaidSafe(element, llmOutput);  // 渲染单张图
 await hydrateMermaid(messageElement);         // Markdown 渲染完成后，把所有 ```mermaid 代码块换成图
 ```
 
-> `mermaid-render.js` 用的是裸模块名 `'mermaid'`。在 Vite、webpack 中可以直接使用；不用打包工具时，需要像 `examples/demo.html` 那样加一段 import map。
+> `mermaid-render.js` 用的是裸模块名 `'mermaid'`。在 Vite、webpack 中可以直接使用；不用打包工具时需要自行配置 import map。本地演示页直接加载 `node_modules` 内的浏览器依赖。
 
 
 
@@ -143,11 +151,22 @@ import MermaidBlock, { MarkdownCode } from './examples/MermaidBlock.jsx';
 ```bash
 git clone https://github.com/xillkey/fix-mermaid.git
 cd fix-mermaid
-python3 -m http.server 8765        # 或者：npx serve .
-# 打开 http://localhost:8765/examples/demo.html
+npm install                      # 首次使用时安装依赖
+npm run demo
+# 打开 http://127.0.0.1:8765/examples/demo.html
 ```
 
-示例页面会把每个错误样例的**修复前**和**修复后**并排展示。页面上还有一个"模拟流式输出"按钮，可以直接对比闪烁问题和修复后的效果。
+左侧粘贴 Mermaid 或加载脑图示例，点击“修复并生成脑图”。右侧显示原始 Mermaid 和转换后的 Markmap，支持缩放、拖动、折叠、全屏及复制返回源码。每次点击只调用一次工具。开发演示页从本地加载依赖，通过上述 HTTP 地址打开。
+
+### 8. 分享独立 HTML 或发布 GitHub Pages
+
+```bash
+npm run build:offline
+```
+
+生成 `dist/fixMermaid-offline.html`，把这一个文件发给别人即可。下载到电脑后使用 Edge 或 Chrome 打开，无需安装依赖、启动服务或联网。`npm run test:offline` 会复制文件到单独目录，断网验证实际交互。
+
+同一次构建还生成 `dist/index.html`。发布到自己的 Fork 时，在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。`.github/workflows/pages.yml` 会在推送到 `main` 或手动运行时测试、打包并发布。成功后体验地址为 `https://你的用户名.github.io/fix-mermaid/`。
 
 ![前端调用示例：修复前后对比](docs/images/demo.png)
 
@@ -177,23 +196,35 @@ python3 -m http.server 8765        # 或者：npx serve .
 
 
 
-### `fixMermaid(input, options?) → { code, changed, fixes }`
+### `fixMermaid(input, options?) → { ok, format, code, changed, fixes, error, sourceType? }`
 
-同步执行规则修复，不会抛出异常。
+同步执行一次本地修复与转换，不会抛出异常，`format` 固定为 `markmap`。无法可靠转换时返回 `ok: false, code: '', error: '具体原因'`，不把 Mermaid 源码伪装成成功的 Markmap。
+
+- 思维导图保留层级；流程图保留节点、分支及关系，循环和共享节点使用“返回 / 关联”文字表达。
+- 时序图保留参与者、消息顺序和条件块；数据图表保留原始数值、单位、百分号和“待定”等内容。
+- 类图、ER 图、状态图以及其他已识别类型，按原语句和块层级组织成树，关系符号保留为文字。不会恢复原图的几何布局。
+- 相同输入与参数得到相同输出；重试策略和次数由后端决定。若后端回传上一次的 Markmap，显式设置 `inputFormat: 'markmap'`，进行标题/列表规范化。
 
 
 | 选项            | 默认值     | 说明                       |
 | ------------- | ------- | ------------------------ |
 | `quoteAll`    | `false` | 给流程图的所有标签都加引号，而不只是有风险的标签 |
 | `removeClick` | `true`  | 删除 `click` 指令            |
+| `inputFormat` | `'mermaid'` | 传入上次返回值时可设为 `'markmap'` |
 
 
 `fixes` 是一个数组，里面是命中规则的中文说明。
 
+### `repairMermaidSyntax(input, options?) → { code, changed, fixes }`
+
+原 `fixMermaid` 的 Mermaid 语法修复功能，供兼容链路使用。`safeRepairMermaid` 内部调用此函数，因此原有渲染封装行为保持不变。
+
+新工具验证：`npm test`；实际 Markmap 渲染验证：`npm run test:markmap-browser`（默认使用本机 Edge，可通过 `BROWSER_CHANNEL=chrome` 切换）。测试截图输出到 `test/browser/shots/markmap-preview.png`。
+
 ### `safeRepairMermaid(input, parse, options?) → Promise<{ ok, code, fixes, originalError, error }>`
 
 1. 先解析原文。如果能通过、也没有发现可疑写法，就原样返回。
-2. 否则执行 `fixMermaid`，然后再解析一次。
+2. 否则执行 `repairMermaidSyntax`，然后再解析一次。
 3. `ok: false` 表示修不好。这时可以降级展示源码，或者交给 LLM 修复。
 
 
@@ -217,7 +248,7 @@ python3 -m http.server 8765        # 或者：npx serve .
 
 多次渲染会排队依次执行，避免 `mermaid.render` 并发冲突。结果按源码缓存（最多 200 条），同一段源码只上报一次。
 
-## 工作原理
+## 原有 Mermaid 兼容链路的工作原理
 
 ```
 LLM 输出
@@ -226,13 +257,13 @@ LLM 输出
 mermaid.parse ── 通过 ──► 语义检查 ── 没问题 ──► 原样渲染
    │ 失败                   │ 可疑
    ▼                        ▼
-fixMermaid（规则）──────► mermaid.parse ── 通过 ──► 渲染修复后的代码
+repairMermaidSyntax ───► mermaid.parse ── 通过 ──► 渲染修复后的代码
                              │ 失败
                              ▼
                    展示源码 + 复制按钮（或交给 LLM 修复）
 ```
 
-所有规则都是确定性的，几毫秒就能跑完。`fixMermaid` 不会主动删除节点或边。浏览器测试会在每次修复后统计渲染出的 SVG 中的节点、边、消息、扇区和柱子数量，以此来验证。
+原有规则是确定性的。原有浏览器测试统计 Mermaid SVG 中的节点、边、消息、扇区和柱子；新增的 `test:markmap-browser` 则验证新工具输出的 Markmap 节点与文本。
 
 ## 测试
 

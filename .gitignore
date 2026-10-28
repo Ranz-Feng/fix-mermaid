@@ -2,3 +2,4 @@ node_modules/
 test/browser/shots/
 test/browser/results*.json
 .DS_Store
+dist/

@@ -4,7 +4,13 @@
 
 # fix-mermaid.js
 
-**A JavaScript library that directly fixes Mermaid syntax errors produced by LLMs.**
+**A local JavaScript tool that repairs Mermaid and returns Markmap Markdown.**
+
+In this branch, each `fixMermaid` call performs one local conversion. The backend owns the failure trigger, retry policy (up to three calls), and final error display. The tool does not call a model or render a diagram.
+
+Successful results contain `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`. `code` is Markdown without fences and must be rendered by **Markmap**. `ok` means conversion succeeded; the caller must still check actual rendering.
+
+The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` now previews Markmap output; the original author's hosted demo below does not change with local edits.
 
 <p align="center">
   <a href="https://xillkey.github.io/fix-mermaid/examples/demo.html"><strong>Live demo</strong></a>
@@ -18,7 +24,7 @@ LLMs write Mermaid well most of the time, but a noticeable fraction of diagrams 
 
 ## Highlights
 
-- **Runs directly in the front end.** It is a pure function operating on strings: no DOM access, no dependencies, and no build step. One ES module file (~28 KB, ~10 KB gzipped) works in browsers, Web Workers, and Node.
+- **Runs locally.** Pure string processing, no DOM access or runtime dependencies. Keep the two ES modules `src/fixMermaid.js` and `src/markmap-convert.js` together when copying them into a project.
 - **Fixes most LLM Mermaid errors.** It covers flowcharts, sequence, class, state, ER, pie, bar/line (`xychart`), and mind map diagrams. In real-browser tests, 20 out of 20 fixable broken diagrams rendered correctly after repair.
 - **Never breaks a valid diagram.** `safeRepairMermaid` first validates the input with the same `mermaid.parse` you render with. Valid code is returned untouched, and repaired code is re-validated before it is used.
 - **Catches diagrams that parse but render wrong.** For example, the mind map node `数学(微积分)` parses fine but loses the text outside the brackets. A semantic check detects this and repairs it.
@@ -41,8 +47,9 @@ The package is not on npm yet. Pick one of these options:
 # Option A: install from GitHub
 npm install github:xillkey/fix-mermaid
 
-# Option B: copy the file into your project (it has no dependencies)
+# Option B: copy both source files into the same directory (no runtime dependencies)
 curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/fixMermaid.js
+curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/markmap-convert.js
 ```
 
 ```html
@@ -60,20 +67,21 @@ You also need `mermaid` itself for rendering and validation (`npm install mermai
 import { fixMermaid } from 'fix-mermaid';
 
 const llmOutput = 'flowchart LR\nA【用户】——>B（登录服务）\nB --> C[调用接口(v2)]';
-const { code, changed, fixes } = fixMermaid(llmOutput);
+const { ok, format, code, changed, fixes, error } = fixMermaid(llmOutput);
 
 console.log(code);
-// flowchart LR
-// A["用户"]-->B("登录服务")
-// B --> C["调用接口(v2)"]
+// # 用户
+// - 登录服务
+//   - 调用接口\(v2\)
+console.log(format); // markmap
 console.log(fixes); // list of rules that were applied
 ```
 
 
 
-### 3. Recommended: validate → repair → re-validate
+### 3. Compatibility API: Mermaid validation and repair
 
-`fixMermaid` always applies its rules. In production, use `safeRepairMermaid`, which only touches code that actually fails to parse:
+The following example is the existing Mermaid path. The new backend tool integration should call `fixMermaid` directly and use its `format` and `code` fields:
 
 ```js
 import mermaid from 'mermaid';
@@ -109,7 +117,7 @@ await renderMermaidSafe(element, llmOutput);  // render one diagram
 await hydrateMermaid(messageElement);         // replace every ```mermaid block after Markdown rendering
 ```
 
-> `mermaid-render.js` imports the bare specifier `'mermaid'`. With Vite or webpack this just works. Without a bundler, add an import map, as shown in `examples/demo.html`.
+> `mermaid-render.js` imports the bare specifier `'mermaid'`. With Vite or webpack this just works. Without a bundler, configure an import map. The local demo directly loads browser dependencies from `node_modules`.
 
 
 
@@ -143,11 +151,18 @@ import MermaidBlock, { MarkdownCode } from './examples/MermaidBlock.jsx';
 ```bash
 git clone https://github.com/xillkey/fix-mermaid.git
 cd fix-mermaid
-python3 -m http.server 8765        # or: npx serve .
-# open http://localhost:8765/examples/demo.html
+npm install                      # first use only
+npm run demo
+# open http://127.0.0.1:8765/examples/demo.html
 ```
 
-The demo shows each broken sample rendered **before** and **after** repair side by side. It also has a "simulate streaming" button that shows the flashing problem next to the fixed behaviour.
+Paste Mermaid or load the mind map example, then click the preview button. The page shows original Mermaid and converted Markmap, with zoom, pan, branch folding, fullscreen and source copying. Each click calls the tool once. Use the HTTP address above for this development page.
+
+### 8. Share a standalone HTML file or publish GitHub Pages
+
+Run `npm run build:offline` and share `dist/fixMermaid-offline.html`. Recipients can open that one file in desktop Edge or Chrome without dependencies, a server or network access. `npm run test:offline` verifies a separate copy with networking disabled.
+
+The build also creates `dist/index.html`. In your fork, select **Settings → Pages → Build and deployment → Source → GitHub Actions**. The workflow in `.github/workflows/pages.yml` tests, builds and publishes on pushes to `main` or manual runs. The resulting URL is `https://YOUR-USERNAME.github.io/fix-mermaid/`.
 
 ![Front-end demo: before and after repair](docs/images/demo.png)
 
@@ -177,23 +192,34 @@ The demo shows each broken sample rendered **before** and **after** repair side 
 
 
 
-### `fixMermaid(input, options?) → { code, changed, fixes }`
+### `fixMermaid(input, options?) → { ok, format, code, changed, fixes, error, sourceType? }`
 
-Applies rule-based repairs synchronously. It never throws.
+Performs one local repair and conversion synchronously. It never throws. `format` is always `markmap`; a failed conversion returns `ok: false, code: '', error`.
+
+Mind maps retain their hierarchy. Flowcharts retain nodes and relations, with textual references for cycles and shared nodes. Sequence messages retain order; chart values retain original units and unknown values. Other recognized Mermaid families become statement/block trees, retaining relationship operators as literal text. Original geometrical layouts are not retained.
+
+Identical inputs and options produce identical results. Retry decisions belong to the backend. To pass an earlier Markmap output back explicitly, use `inputFormat: 'markmap'` for heading/list normalization.
 
 
 | Option        | Default | Description                                          |
 | ------------- | ------- | ---------------------------------------------------- |
 | `quoteAll`    | `false` | Quote every flowchart label, not only the risky ones |
 | `removeClick` | `true`  | Remove `click` directives                            |
+| `inputFormat` | `'mermaid'` | Set to `'markmap'` when passing back an earlier output |
 
 
 `fixes` is an array of human-readable rule descriptions. They are currently written in Chinese; contributions for i18n are welcome.
 
+### `repairMermaidSyntax(input, options?) → { code, changed, fixes }`
+
+The original Mermaid syntax repair API, now used internally by `safeRepairMermaid` to keep existing rendering helpers compatible.
+
+Run `npm test` for regressions and `npm run test:markmap-browser` for actual output rendering (local Edge by default; set `BROWSER_CHANNEL=chrome` to use Chrome). The latter writes `test/browser/shots/markmap-preview.png`.
+
 ### `safeRepairMermaid(input, parse, options?) → Promise<{ ok, code, fixes, originalError, error }>`
 
 1. Parses the input. If it is valid and no suspicious pattern is found, the input is returned unchanged.
-2. Otherwise it runs `fixMermaid` and parses the result again.
+2. Otherwise it runs `repairMermaidSyntax` and parses the result again.
 3. `ok: false` means the diagram could not be repaired. At that point you can fall back to showing the source, or send it to an LLM for repair.
 
 
@@ -226,13 +252,13 @@ LLM output
 mermaid.parse ── valid ──► semantic check ── clean ──► render as is
    │ invalid                    │ suspicious
    ▼                            ▼
-fixMermaid (rules) ────────► mermaid.parse ── valid ──► render repaired code
+repairMermaidSyntax ──────► mermaid.parse ── valid ──► render repaired code
                                  │ invalid
                                  ▼
                      show source + copy button (or send to an LLM for repair)
 ```
 
-The rules are deterministic and run in milliseconds. `fixMermaid` never removes nodes or edges on purpose. The browser test suite checks this by counting nodes, edges, messages, slices, and bars in the rendered SVG after every repair.
+The existing deterministic Mermaid path is tested by counting nodes, edges, messages, slices and bars in SVGs. The new `test:markmap-browser` command checks the new tool's Markmap nodes and text instead.
 
 ## Testing
 

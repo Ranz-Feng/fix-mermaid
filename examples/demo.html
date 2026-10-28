@@ -3,21 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fixMermaid 前端调用示例</title>
-<!-- 用 import map 把裸模块名 'mermaid' 指向 CDN；用打包工具（Vite/webpack）时不需要这段 -->
-<script type="importmap">
-{ "imports": { "mermaid": "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs" } }
-</script>
+<title>fixMermaid 本地工具</title>
+<!-- 所有依赖从本地 node_modules 加载，不访问 CDN。 -->
+<script src="../node_modules/d3/dist/d3.min.js"></script>
+<script src="../node_modules/katex/dist/katex.min.js"></script>
+<script src="../node_modules/markmap-lib/dist/browser/index.iife.js"></script>
+<script src="../node_modules/markmap-view/dist/browser/index.js"></script>
 <style>
   :root { --ink:#1D2433; --muted:#5B6475; --line:#D9DEE7; --accent:#3346B8; --bg:#F5F7FA; }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.6 "PingFang SC","Microsoft YaHei",system-ui,sans-serif; color: var(--ink); background: var(--bg); }
-  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  main { max-width: 1600px; margin: 0 auto; padding: 24px 16px; }
   h1 { font-size: 22px; margin: 0 0 16px; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  .grid { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.7fr); gap: 16px; align-items: start; }
   @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
   .card { background: #fff; border: 1px solid var(--line); padding: 16px; }
-  textarea { width: 100%; height: 260px; font: 13px/1.5 Menlo, Consolas, monospace; padding: 10px; border: 1px solid var(--line); resize: vertical; }
+  textarea { width: 100%; height: 520px; font: 13px/1.5 Menlo, Consolas, monospace; padding: 10px; border: 1px solid var(--line); resize: vertical; }
   .bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; align-items: center; }
   button { font: inherit; padding: 6px 12px; border: 1px solid var(--line); background: #fff; cursor: pointer; }
   .panel-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -33,6 +34,17 @@
   .mermaid-raw-error { background: #FEF3F2; border: 1px solid #FDA29B; color: #912018; padding: 10px; margin: 0;
                        font: 12px/1.5 Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-all; }
 
+  .intro { color: var(--muted); margin-top: -8px; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .after { position: relative; }
+  #out { height: 620px; background: white; }
+  #out > svg { width: 100%; height: 100%; font: 20px "Microsoft YaHei",sans-serif; }
+  .after:fullscreen { padding: 24px; overflow: auto; background: white; }
+  .after:fullscreen #out { height: calc(100vh - 100px); }
+  .mermaid-syntax-error { display: inline-block; color: #B42318; background: #FEF3F2; padding: 5px 12px; }
+  #fixedSrc { white-space: pre-wrap; word-break: break-word; }
+  @media (max-width: 800px) { textarea { height: 280px; } #out { height: 480px; } }
+
   /* 渲染容器与降级样式 —— 集成到项目时带上这部分 */
   .mermaid-block { min-height: 80px; overflow-x: auto; }
   .mermaid-block svg { max-width: 100%; height: auto; }
@@ -44,26 +56,29 @@
 </head>
 <body>
 <main>
-  <h1>fixMermaid 前端调用示例</h1>
+  <h1>fixMermaid 本地工具</h1>
+  <p class="intro">粘贴图表源码，修复并生成脑图，可缩放、拖动和折叠分支。</p>
   <div class="grid">
     <section class="card">
       <div class="bar">
-        <button class="primary" id="render">渲染</button>
-        <button id="stream">模拟流式输出</button>
+        <button class="primary" id="render" disabled>修复并生成脑图</button>
+        <button type="button" id="sample">加载脑图示例</button>
       </div>
       <textarea id="src" spellcheck="false" aria-label="Mermaid 源码"></textarea>
     </section>
     <div class="result-col">
       <section class="card before">
-        <div class="panel-head"><h2>修复前</h2><span class="state" id="stateBefore">—</span></div>
+        <div class="panel-head"><h2>原始 Mermaid</h2><span class="state" id="stateBefore">—</span></div>
         <div id="before" class="mermaid-block"></div>
       </section>
-      <section class="card after">
+      <section class="card after" id="markmapPanel">
         <div class="panel-head">
-          <h2>修复后</h2>
+          <h2>修复后 · 脑图</h2>
           <div class="panel-actions">
+            <button type="button" id="fit">适应视图</button>
+            <button type="button" id="fullscreen">全屏查看</button>
             <button type="button" id="toggleFixedSrc" class="mermaid-fallback-copy" hidden>展示源码</button>
-            <span class="state" id="state">—</span>
+            <span class="state" id="state" role="status">加载中…</span>
           </div>
         </div>
         <div id="out" class="mermaid-block"></div>
@@ -78,105 +93,121 @@
 </main>
 
 <script type="module">
-import { setupMermaid, renderMermaidSafe, renderMermaidRaw, createStreamingMermaid, compileMermaid } from '../src/mermaid-render.js';
+import mermaid from '../node_modules/mermaid/dist/mermaid.esm.min.mjs';
+import { fixMermaid } from '../src/fixMermaid.js';
 
 const $ = (id) => document.getElementById(id);
-let lastFixedCode = '';
-let fixedSrcVisible = false;
+const { Transformer, Markmap } = window.markmap;
+const transformer = new Transformer([]);
+mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', suppressErrorRendering: true, theme: 'default' });
+let view = null, lastCode = '', seq = 0;
+const mindmapExample = `mindmap
+# 郑钦文2026年10月动态
+## 中网夺冠高光
+- 10月11日决赛2-0击败安德列娃
+- 生涯首座WTA1000冠军
+- 中网20届首位本土女单冠军
+- 排名从第54位升至第23位
+- 锁定2027澳网种子席位
+## 连续退赛与赛季收官
+- 10月12日退出武汉网球公开赛
+- 10月15日退出大阪站
+- 10月18日退出香港站
+- 10月19日确认赛季提前结束
+- 右肩旧伤复发叠加身体疲劳
+## 伤病背景与教训
+- 2025年7月右肘关节手术
+- 2026年6月排名跌至第160位
+- 吸取仓促复出导致伤情反复教训
+- 从硬撑到主动止损的策略转变
+## 冬训与2027赛季展望
+- 赴西班牙巴塞罗那开启冬训
+- 系统康复右肩与体能储备
+- 双教练团队打磨发球与反手
+- 父亲喊话明年大满贯必须拿下
+- 以健康状态冲击澳网与大满贯`;
 
-function setFixedSource(code) {
-  lastFixedCode = code ?? '';
-  $('fixedSrc').textContent = lastFixedCode;
-  $('toggleFixedSrc').hidden = !lastFixedCode;
-  if (!lastFixedCode) {
-    fixedSrcVisible = false;
-    $('fixedSrcPanel').hidden = true;
-    $('toggleFixedSrc').textContent = '展示源码';
-  }
+function log(items) {
+  $('log').replaceChildren();
+  for (const text of items) { const li = document.createElement('li'); li.textContent = text; $('log').append(li); }
 }
-
-$('toggleFixedSrc').onclick = () => {
-  fixedSrcVisible = !fixedSrcVisible;
-  $('fixedSrcPanel').hidden = !fixedSrcVisible;
-  $('toggleFixedSrc').textContent = fixedSrcVisible ? '隐藏源码' : '展示源码';
-};
-
-$('copyFixedSrc').onclick = async () => {
-  const btn = $('copyFixedSrc');
+function sourceResult(code) {
+  lastCode = code; $('fixedSrc').textContent = code;
+  $('toggleFixedSrc').hidden = !code;
+  $('fixedSrcPanel').hidden = true; $('toggleFixedSrc').textContent = '展示源码';
+}
+async function renderOriginal(source) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-100000px;width:1200px;visibility:hidden;';
+  host.setAttribute('aria-hidden', 'true'); document.body.append(host);
   try {
-    await navigator.clipboard.writeText(lastFixedCode);
-    btn.textContent = '已复制';
-    setTimeout(() => { btn.textContent = '复制代码'; }, 1500);
+    const { svg } = await mermaid.render(`demo-original-${++seq}`, source, host);
+    $('before').innerHTML = svg; $('stateBefore').textContent = '原文可渲染';
   } catch {
-    btn.textContent = '复制失败，请手动选择';
-  }
-};
-const log = (items) => { $('log').innerHTML = ''; for (const t of items) { const li = document.createElement('li'); li.textContent = t; $('log').append(li); } };
-const stateText = { ok: '原文可直接渲染', repaired: '已自动修复', fallback: '修复失败，已降级展示源码', pending: '生成中' };
-
-setupMermaid({
-  theme: 'light',
-  onReport: (r) => console.info('[mermaid 上报]', r),   // 实际项目里发到埋点接口
-});
-
-$('src').value = `flowchart LR
-A【用户】——>B（登录服务）
-B → C[调用接口(v2)]
-C --> end[结束]`;
-
-async function renderBefore(source) {
-  const r = await renderMermaidRaw($('before'), source);
-  $('stateBefore').textContent = r.ok ? '原文可渲染' : '渲染失败';
-  return r;
+    const badge = document.createElement('span'); badge.className = 'mermaid-syntax-error';
+    badge.textContent = '语法错误'; $('before').replaceChildren(badge);
+    $('stateBefore').textContent = '原文渲染失败';
+  } finally { host.remove(); }
 }
-
-$('render').onclick = async () => {
+async function preview() {
   const source = $('src').value;
-  await renderBefore(source);
-  const r = await renderMermaidSafe($('out'), source);
-  $('state').textContent = stateText[$('out').dataset.mermaidState];
-  setFixedSource(r.code);
-  log(r.fixes.length ? r.fixes : [r.ok ? '无需修复' : `错误：${r.error}`]);
+  $('render').disabled = true; $('sample').disabled = true;
+  $('state').textContent = '转换中…'; $('out').dataset.state = 'pending';
+  view?.destroy(); view = null; $('out').replaceChildren(); sourceResult(''); log([]);
+  try {
+    await renderOriginal(source);
+    // Manual tool preview: one button click = one fixMermaid call. No business retry loop.
+    const result = fixMermaid(source);
+    if (!result.ok) throw new Error(result.error);
+    sourceResult(result.code);
+    const { root } = transformer.transform(result.code);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    // Numeric SVG dimensions keep zoom/fullscreen transitions valid in file:// pages too.
+    svg.setAttribute('width', String($('out').clientWidth));
+    svg.setAttribute('height', String($('out').clientHeight));
+    $('out').append(svg);
+    view = Markmap.create(svg, { duration: 0, initialExpandLevel: -1, maxWidth: 600, spacingHorizontal: 80, spacingVertical: 10 });
+    await view.setData(root); await view.fit();
+    $('state').textContent = '转换成功'; $('out').dataset.state = 'ok';
+    log(result.fixes);
+  } catch (error) {
+    view?.destroy(); view = null;
+    const badge = document.createElement('span'); badge.className = 'mermaid-syntax-error';
+    badge.textContent = '语法错误'; $('out').replaceChildren(badge);
+    $('state').textContent = '转换失败'; $('out').dataset.state = 'error';
+    log([String(error?.message ?? error)]);
+  } finally { $('render').disabled = false; $('sample').disabled = false; }
+}
+$('render').onclick = preview;
+$('sample').onclick = () => { $('src').value = mindmapExample; preview(); };
+$('toggleFixedSrc').onclick = () => {
+  $('fixedSrcPanel').hidden = !$('fixedSrcPanel').hidden;
+  $('toggleFixedSrc').textContent = $('fixedSrcPanel').hidden ? '展示源码' : '隐藏源码';
 };
-
-// 模拟 LLM 逐字输出：
-// 修复前 —— 每收到一段就直接渲染，半截代码会反复报错、闪烁；
-// 修复后 —— 生成中保留上一次成功的图，结束时做最终渲染。
-let streamTimer = null;
-$('stream').onclick = () => {
-  clearInterval(streamTimer);
-  const full = $('src').value;
-  const out = $('out');
-  out.replaceChildren(); delete out.dataset.mermaidState;
-  $('before').replaceChildren(); log([]);
-  setFixedSource('');
-  const s = createStreamingMermaid(out, { delay: 250 });
-  let i = 0;
-  let rawBusy = false;
-  streamTimer = setInterval(() => {
-    i = Math.min(full.length, i + 4);
-    const done = i >= full.length;
-    const partial = full.slice(0, i);
-    s.update(partial, { done });
-    if (!rawBusy || done) {                      // 修复前：直接渲染当前片段
-      rawBusy = true;
-      renderBefore(partial).finally(() => { rawBusy = false; });
-    }
-    const progress = done ? '生成结束' : `生成中（${i}/${full.length}）`;
-    $('state').textContent = progress;
-    if (done) {
-      clearInterval(streamTimer);
-      setTimeout(async () => {
-        $('state').textContent = stateText[out.dataset.mermaidState] ?? '生成结束';
-        const r = await compileMermaid(full);
-        setFixedSource(r.code);
-        log(['流式输出结束，已做最终渲染']);
-      }, 300);
-    }
-  }, 60);
+$('copyFixedSrc').onclick = async () => {
+  try { await navigator.clipboard.writeText(lastCode); $('copyFixedSrc').textContent = '已复制'; }
+  catch { $('copyFixedSrc').textContent = '请手动选择下方源码复制'; }
+  setTimeout(() => { $('copyFixedSrc').textContent = '复制代码'; }, 1500);
 };
-
-$('render').click();
+function fitView() {
+  const svg = $('out').querySelector('svg');
+  if (!view || !svg) return;
+  svg.setAttribute('width', String($('out').clientWidth));
+  svg.setAttribute('height', String($('out').clientHeight));
+  return view.fit();
+}
+$('fit').onclick = fitView;
+$('fullscreen').onclick = async () => {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  else await $('markmapPanel').requestFullscreen();
+};
+document.addEventListener('fullscreenchange', () => {
+  $('fullscreen').textContent = document.fullscreenElement ? '退出全屏' : '全屏查看';
+});
+let resizeTimer;
+new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitView, 100); }).observe($('out'));
+$('src').value = mindmapExample;
+await preview();
 </script>
 </body>
 </html>

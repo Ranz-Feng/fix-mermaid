@@ -1,14 +1,37 @@
 /**
- * fixMermaid —— 基于规则的 Mermaid 语法修复（纯函数，无依赖，浏览器 / Node 通用）
+ * fixMermaid —— 本地 Mermaid 修复并转换为 Markmap（无模型调用）。
  *
  * 用法：
  *   const { code, changed, fixes } = fixMermaid(llmOutput);
  *
- * 建议配合 safeRepairMermaid 使用：原文能 parse 通过就不动它，修复后再 parse 一次确认。
+ * 调用方负责渲染检测、重试次数和失败展示；本工具每次仅执行一次转换。
  *
  * 兼容性：未使用正则后行断言 (?<!...)，可运行于 iOS/Safari 13.4+、Chrome 80+、Firefox 78+。
  * 注意：不要在本文件中引入 (?<= / (?<! 后行断言，旧版 Safari 会在模块加载时直接抛 SyntaxError。
  */
+
+import { mermaidToMarkmap, normalizeMarkmap } from './markmap-convert.js';
+
+/** 一次修复调用。code 始终为 Markmap Markdown；是否能显示由渲染器确认。 */
+export function fixMermaid(input, options = {}) {
+  try {
+    if (typeof input !== 'string' || !input.trim()) throw new Error('输入为空');
+    if (options.inputFormat === 'markmap') {
+      const code = normalizeMarkmap(input);
+      return { ok: true, format: 'markmap', code, changed: code !== input,
+        fixes: ['规范 Markmap 标题和列表'], error: null };
+    }
+    const repaired = repairMermaidSyntax(input, options);
+    const { code, type } = mermaidToMarkmap(repaired.code, input);
+    const dataChart = type === 'pie' || type.startsWith('xychart');
+    const fixes = dataChart ? repaired.fixes.filter((note) => !/^(?:pie|xychart)：/.test(note)) : repaired.fixes;
+    return { ok: true, format: 'markmap', code, sourceType: type, changed: code !== input,
+      fixes: [...fixes, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
+  } catch (e) {
+    return { ok: false, format: 'markmap', code: '', changed: false, fixes: [],
+      error: String(e?.message ?? e) };
+  }
+}
 
 const DIAGRAM_TYPES = [
   'flowchart', 'graph', 'sequenceDiagram', 'classDiagram', 'classDiagram-v2',
@@ -35,7 +58,7 @@ const isIdChar = (c) => c !== undefined && /[\p{L}\p{N}_]/u.test(c);
 /** 标签里只含这些字符时不需要加引号 */
 const SAFE_LABEL = /^[\p{L}\p{N}\s_,.!?\-+*、，。！？]*$/u;
 
-export function fixMermaid(input, options = {}) {
+export function repairMermaidSyntax(input, options = {}) {
   const opts = { quoteAll: false, removeClick: true, ...options };
   const fixes = [];
   const note = (msg) => { if (!fixes.includes(msg)) fixes.push(msg); };
@@ -697,11 +720,11 @@ export async function safeRepairMermaid(input, parse, options) {
     // 语法合法但大概率画错的写法：修复后仍能解析才采用
     const suspicion = looksSemanticallyWrong(input);
     if (!suspicion) return untouched;
-    const { code, fixes } = fixMermaid(input, options);
+    const { code, fixes } = repairMermaidSyntax(input, options);
     if (code === input.trim() || await parse(code)) return untouched;
     return { ok: true, code, fixes: [`语义检查：${suspicion}`, ...fixes], originalError: null, error: null };
   }
-  const { code, fixes } = fixMermaid(input, options);
+  const { code, fixes } = repairMermaidSyntax(input, options);
   const error = await parse(code);
   return { ok: !error, code, fixes, originalError, error };
 }

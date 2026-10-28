@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `fixMermaid` now returns Markmap Markdown with explicit `ok`, `format` and `error` fields. This changes the output contract; consumers must use a Markmap renderer.
+- Local conversion preserves tree content, graph relations, sequence order and original chart values. No model calls, rendering or internal retry loop.
+- Backend callers own retry scheduling. Existing Mermaid rendering helpers remain compatible through `repairMermaidSyntax`.
+- Added conversion regressions and a real-browser Markmap output check.
+
 ## 0.1.0
 
 - `fixMermaid`: rule-based repair for flowchart, sequence, class, state, ER, pie, xychart (bar/line) and mindmap diagrams.
