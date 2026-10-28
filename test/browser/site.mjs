@@ -1,4 +1,4 @@
-/** Test a copy of the single HTML file, with networking disabled and no sibling dependencies. */
+/** Verify the Pages build without sibling dependencies or runtime CDN access. */
 import assert from 'node:assert/strict';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -7,11 +7,11 @@ import { chromium } from 'playwright';
 import { fixMermaid } from '../../src/fixMermaid.js';
 
 const root = resolve(import.meta.dirname, '../..');
-const isolated = resolve(import.meta.dirname, 'shots/offline-isolated');
+const isolated = resolve(import.meta.dirname, 'shots/site-isolated');
 await mkdir(isolated, { recursive: true });
-const file = resolve(isolated, 'fixMermaid-offline.html');
-await copyFile(resolve(root, 'dist/fixMermaid-offline.html'), file);
-const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true });
+const file = resolve(isolated, 'index.html');
+await copyFile(resolve(root, 'dist/index.html'), file);
+const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome', headless: true });
 try {
   const context = await browser.newContext({ offline: true, viewport: { width: 1580, height: 1150 } });
   const page = await context.newPage();
@@ -59,8 +59,8 @@ try {
   await page.waitForFunction(() => document.fullscreenElement?.id === 'markmapPanel');
   await page.locator('#fullscreen').click();
   await page.waitForFunction(() => !document.fullscreenElement);
-  await page.screenshot({ path: resolve(import.meta.dirname, 'shots/offline-demo.png'), fullPage: true });
+  await page.screenshot({ path: resolve(import.meta.dirname, 'shots/site-demo.png'), fullPage: true });
   assert.deepEqual(errors, []);
   assert.deepEqual(requests, [url]);
-  console.log(`PASS: standalone file://, no dependency/network requests, tool output parity, original rendering, error display, example, fullscreen and copy (${copyStatus}).`);
+  console.log(`PASS: Pages build, no dependency/network requests, tool output parity, original rendering, error display, example, fullscreen and copy (${copyStatus}).`);
 } finally { await browser.close(); }

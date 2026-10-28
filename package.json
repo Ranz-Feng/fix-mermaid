@@ -14,8 +14,8 @@
   "scripts": {
     "test": "node test/node.test.mjs && node --test test/markmap.test.mjs",
     "test:markmap-browser": "node test/browser/markmap.mjs",
-    "build:offline": "node scripts/build-offline.mjs",
-    "test:offline": "node test/browser/offline.mjs",
+    "build:site": "node scripts/build-site.mjs",
+    "test:site": "node test/browser/site.mjs",
     "demo": "python -m http.server 8765 --bind 127.0.0.1"
   },
   "keywords": ["mermaid", "llm", "ai", "repair", "fix", "syntax", "markdown", "chatbot", "diagram"],

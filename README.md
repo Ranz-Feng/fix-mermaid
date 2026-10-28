@@ -10,10 +10,10 @@ In this branch, each `fixMermaid` call performs one local conversion. The backen
 
 Successful results contain `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`. `code` is Markdown without fences and must be rendered by **Markmap**. `ok` means conversion succeeded; the caller must still check actual rendering.
 
-The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` now previews Markmap output; the original author's hosted demo below does not change with local edits.
+The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` now previews Markmap output; the hosted demo is published by the GitHub Pages workflow below.
 
 <p align="center">
-  <a href="https://xillkey.github.io/fix-mermaid/examples/demo.html"><strong>Live demo</strong></a>
+  <a href="https://le9070124-dot.github.io/fix-mermaid/"><strong>Live demo</strong></a>
 </p>
 
 LLMs write Mermaid well most of the time, but a noticeable fraction of diagrams fail to render. Typical causes are full-width punctuation, unquoted labels containing brackets, `end` used as a node id, a missing `end`, a `%` sign inside a pie chart, or a mind map written as a Markdown list. `fix-mermaid` is a small, dependency-free JavaScript module that repairs these errors before rendering, so your users see a diagram instead of `Syntax error in text`.
@@ -45,17 +45,17 @@ The package is not on npm yet. Pick one of these options:
 
 ```bash
 # Option A: install from GitHub
-npm install github:xillkey/fix-mermaid
+npm install github:le9070124-dot/fix-mermaid
 
 # Option B: copy both source files into the same directory (no runtime dependencies)
-curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/fixMermaid.js
-curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/markmap-convert.js
+curl -O https://raw.githubusercontent.com/le9070124-dot/fix-mermaid/main/src/fixMermaid.js
+curl -O https://raw.githubusercontent.com/le9070124-dot/fix-mermaid/main/src/markmap-convert.js
 ```
 
 ```html
 <!-- Option C: load from a CDN, no build step -->
 <script type="module">
-  import { fixMermaid } from 'https://cdn.jsdelivr.net/gh/xillkey/fix-mermaid@main/src/fixMermaid.js';
+  import { fixMermaid } from 'https://cdn.jsdelivr.net/gh/le9070124-dot/fix-mermaid@main/src/fixMermaid.js';
 </script>
 ```
 
@@ -149,7 +149,7 @@ import MermaidBlock, { MarkdownCode } from './examples/MermaidBlock.jsx';
 ### 7. Try the demo
 
 ```bash
-git clone https://github.com/xillkey/fix-mermaid.git
+git clone https://github.com/le9070124-dot/fix-mermaid.git
 cd fix-mermaid
 npm install                      # first use only
 npm run demo
@@ -158,11 +158,11 @@ npm run demo
 
 Paste Mermaid or load the mind map example, then click the preview button. The page shows original Mermaid and converted Markmap, with zoom, pan, branch folding, fullscreen and source copying. Each click calls the tool once. Use the HTTP address above for this development page.
 
-### 8. Share a standalone HTML file or publish GitHub Pages
+### 8. Publish GitHub Pages
 
-Run `npm run build:offline` and share `dist/fixMermaid-offline.html`. Recipients can open that one file in desktop Edge or Chrome without dependencies, a server or network access. `npm run test:offline` verifies a separate copy with networking disabled.
+Run `npm run build:site` to create `dist/index.html` with runtime dependencies included. `npm run test:site` checks the built page's interactions in Chrome without runtime CDN access.
 
-The build also creates `dist/index.html`. In your fork, select **Settings → Pages → Build and deployment → Source → GitHub Actions**. The workflow in `.github/workflows/pages.yml` tests, builds and publishes on pushes to `main` or manual runs. The resulting URL is `https://YOUR-USERNAME.github.io/fix-mermaid/`.
+Select **Settings → Pages → Build and deployment → Source → GitHub Actions**. The workflow in `.github/workflows/pages.yml` tests, builds and publishes on pushes to `main` or manual runs. The demo URL is https://le9070124-dot.github.io/fix-mermaid/ .
 
 ![Front-end demo: before and after repair](docs/images/demo.png)
 

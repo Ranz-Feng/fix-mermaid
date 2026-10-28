@@ -10,10 +10,10 @@
 
 成功结果为 `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`。`code` 是不带代码围栏的 Markdown，需要交给 **Markmap 渲染器**。`ok` 表示转换成功，实际显示是否成功仍需调用方验证。
 
-为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已接入新的 Markmap 输出；下方原作者在线地址不会随本地修改更新。
+为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已接入新的 Markmap 输出；在线体验页由下方 GitHub Pages 工作流发布。
 
 <p align="center">
-  <a href="https://xillkey.github.io/fix-mermaid/examples/demo.html"><strong>在线示例</strong></a>
+  <a href="https://le9070124-dot.github.io/fix-mermaid/"><strong>在线示例</strong></a>
 </p>
 
 LLM 大多数时候能写出正确的 Mermaid，但总有一部分图渲染失败。常见原因有：全角标点、标签里有括号却没加引号、用 `end` 当节点 ID、漏写 `end`、饼图数值带 `%`、脑图写成了 Markdown 列表。`fix-mermaid` 是一个零依赖的 JavaScript 小模块，在渲染前把这些错误修好，让用户看到的是图，而不是 `Syntax error in text`。
@@ -45,17 +45,17 @@ LLM 大多数时候能写出正确的 Mermaid，但总有一部分图渲染失�
 
 ```bash
 # 方式 A：从 GitHub 安装
-npm install github:xillkey/fix-mermaid
+npm install github:le9070124-dot/fix-mermaid
 
 # 方式 B：同时复制两个源码文件到同一目录（没有运行时依赖）
-curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/fixMermaid.js
-curl -O https://raw.githubusercontent.com/xillkey/fix-mermaid/main/src/markmap-convert.js
+curl -O https://raw.githubusercontent.com/le9070124-dot/fix-mermaid/main/src/fixMermaid.js
+curl -O https://raw.githubusercontent.com/le9070124-dot/fix-mermaid/main/src/markmap-convert.js
 ```
 
 ```html
 <!-- 方式 C：通过 CDN 引入，不需要构建 -->
 <script type="module">
-  import { fixMermaid } from 'https://cdn.jsdelivr.net/gh/xillkey/fix-mermaid@main/src/fixMermaid.js';
+  import { fixMermaid } from 'https://cdn.jsdelivr.net/gh/le9070124-dot/fix-mermaid@main/src/fixMermaid.js';
 </script>
 ```
 
@@ -149,7 +149,7 @@ import MermaidBlock, { MarkdownCode } from './examples/MermaidBlock.jsx';
 ### 7. 运行示例
 
 ```bash
-git clone https://github.com/xillkey/fix-mermaid.git
+git clone https://github.com/le9070124-dot/fix-mermaid.git
 cd fix-mermaid
 npm install                      # 首次使用时安装依赖
 npm run demo
@@ -158,15 +158,15 @@ npm run demo
 
 左侧粘贴 Mermaid 或加载脑图示例，点击“修复并生成脑图”。右侧显示原始 Mermaid 和转换后的 Markmap，支持缩放、拖动、折叠、全屏及复制返回源码。每次点击只调用一次工具。开发演示页从本地加载依赖，通过上述 HTTP 地址打开。
 
-### 8. 分享独立 HTML 或发布 GitHub Pages
+### 8. 发布 GitHub Pages
 
 ```bash
-npm run build:offline
+npm run build:site
 ```
 
-生成 `dist/fixMermaid-offline.html`，把这一个文件发给别人即可。下载到电脑后使用 Edge 或 Chrome 打开，无需安装依赖、启动服务或联网。`npm run test:offline` 会复制文件到单独目录，断网验证实际交互。
+生成网站入口 `dist/index.html`，运行时所需依赖均包含在构建产物中。`npm run test:site` 使用 Chrome 验证构建后的脑图交互和源码展示。
 
-同一次构建还生成 `dist/index.html`。发布到自己的 Fork 时，在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。`.github/workflows/pages.yml` 会在推送到 `main` 或手动运行时测试、打包并发布。成功后体验地址为 `https://你的用户名.github.io/fix-mermaid/`。
+在仓库 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**。`.github/workflows/pages.yml` 会在推送到 `main` 或手动运行时测试、打包并发布。体验地址为 https://le9070124-dot.github.io/fix-mermaid/ 。
 
 ![前端调用示例：修复前后对比](docs/images/demo.png)
 
