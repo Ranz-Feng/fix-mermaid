@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>fixMermaid 脑图体验版</title>
+<title>fixMermaid 图表修复体验版</title>
 <!-- GitHub Pages build. All runtime dependencies are embedded. -->
 <style>
   :root { --ink:#1D2433; --muted:#5B6475; --line:#D9DEE7; --accent:#3346B8; --bg:#F5F7FA; }
@@ -52,12 +52,12 @@
 </head>
 <body>
 <main>
-  <h1>fixMermaid 脑图体验版</h1>
-  <p class="intro">粘贴图表源码，修复并生成脑图，可缩放、拖动和折叠分支。</p>
+  <h1>fixMermaid 图表修复体验版</h1>
+  <p class="intro">粘贴 Mermaid 源码，一键修复并渲染：脑图输出左→右树形大纲，流程图、甘特图、时序图、饼图、XY 图保持原生样式。</p>
   <div class="grid">
     <section class="card">
       <div class="bar">
-        <button class="primary" id="render" disabled>修复并生成脑图</button>
+        <button class="primary" id="render" disabled>修复 Mermaid 图表</button>
         <button type="button" id="sample">加载脑图示例</button>
         <select id="example" aria-label="其他图表示例">
           <option value="">加载其他图表示例…</option>
@@ -77,7 +77,7 @@
       </section>
       <section class="card after" id="markmapPanel">
         <div class="panel-head">
-          <h2 id="afterTitle">修复后 · 脑图</h2>
+          <h2 id="afterTitle">修复后</h2>
           <div class="panel-actions">
             <button type="button" id="fit">适应视图</button>
             <button type="button" id="fullscreen">全屏查看</button>
@@ -4193,7 +4193,7 @@ ${r.comment}`:r.comment}this.doc.range[2]=r.offset;break}default:this.errors.pus
 - \u7CFB\u7EDF\u5EB7\u590D\u53F3\u80A9\u4E0E\u4F53\u80FD\u50A8\u5907
 - \u53CC\u6559\u7EC3\u56E2\u961F\u6253\u78E8\u53D1\u7403\u4E0E\u53CD\u624B
 - \u7236\u4EB2\u558A\u8BDD\u660E\u5E74\u5927\u6EE1\u8D2F\u5FC5\u987B\u62FF\u4E0B
-- \u4EE5\u5065\u5EB7\u72B6\u6001\u51B2\u51FB\u6FB3\u7F51\u4E0E\u5927\u6EE1\u8D2F`;function LB(e){Lr("log").replaceChildren();for(let t of e){let r=document.createElement("li");r.textContent=t,Lr("log").append(r)}}function bQe(e){vQe=e,Lr("fixedSrc").textContent=e,Lr("toggleFixedSrc").hidden=!e,Lr("fixedSrcPanel").hidden=!0,Lr("toggleFixedSrc").textContent="\u5C55\u793A\u4FEE\u590D\u540E\u6E90\u7801"}async function XXt(e){let t=document.createElement("div");t.style.cssText="position:fixed;left:-100000px;width:1200px;visibility:hidden;",t.setAttribute("aria-hidden","true"),document.body.append(t);try{let{svg:r}=await xN.render(`demo-original-${++wQe}`,e,t);Lr("before").innerHTML=r,Lr("stateBefore").textContent="\u539F\u6587\u53EF\u6E32\u67D3"}catch{let r=document.createElement("span");r.className="mermaid-syntax-error",r.textContent="\u8BED\u6CD5\u9519\u8BEF",Lr("before").replaceChildren(r),Lr("stateBefore").textContent="\u539F\u6587\u6E32\u67D3\u5931\u8D25"}finally{t.remove()}}async function IB(){let e=Lr("src").value;Lr("render").disabled=!0,Lr("sample").disabled=!0,Lr("state").textContent="\u8F6C\u6362\u4E2D\u2026",Lr("out").dataset.state="pending",K0?.destroy(),K0=null,Lr("out").replaceChildren(),bQe(""),LB([]);try{await XXt(e);let t=PVe(e);if(!t.ok)throw new Error(t.error);if(bQe(t.code),t.format==="mermaid"){Lr("afterTitle").textContent="\u4FEE\u590D\u540E \xB7 \u56FE\u8868";let{svg:n}=await xN.render(`demo-fixed-${++wQe}`,t.mermaid);Lr("out").innerHTML=n,Lr("state").textContent="\u539F\u751F\u56FE\u8868\u5DF2\u4FEE\u590D",Lr("out").dataset.state="ok",LB(t.fixes);return}Lr("afterTitle").textContent="\u4FEE\u590D\u540E \xB7 \u8111\u56FE";let{root:r}=YXt.transform(t.markdown??t.code),i=document.createElementNS("http://www.w3.org/2000/svg","svg");i.setAttribute("width",String(Lr("out").clientWidth)),i.setAttribute("height",String(Lr("out").clientHeight)),Lr("out").append(i),K0=RB.create(i,{duration:0,initialExpandLevel:-1,maxWidth:600,spacingHorizontal:80,spacingVertical:10}),await K0.setData(r),await K0.fit(),Lr("state").textContent="\u8F6C\u6362\u6210\u529F",Lr("out").dataset.state="ok",LB(t.fixes)}catch(t){K0?.destroy(),K0=null;let r=document.createElement("span");r.className="mermaid-syntax-error",r.textContent="\u8BED\u6CD5\u9519\u8BEF",Lr("out").replaceChildren(r),Lr("state").textContent="\u8F6C\u6362\u5931\u8D25",Lr("out").dataset.state="error",LB([String(t?.message??t)])}finally{Lr("render").disabled=!1,Lr("sample").disabled=!1}}var KXt={flowchart:`graph TD
+- \u4EE5\u5065\u5EB7\u72B6\u6001\u51B2\u51FB\u6FB3\u7F51\u4E0E\u5927\u6EE1\u8D2F`;function LB(e){Lr("log").replaceChildren();for(let t of e){let r=document.createElement("li");r.textContent=t,Lr("log").append(r)}}function bQe(e){vQe=e,Lr("fixedSrc").textContent=e,Lr("toggleFixedSrc").hidden=!e,Lr("fixedSrcPanel").hidden=!0,Lr("toggleFixedSrc").textContent="\u5C55\u793A\u4FEE\u590D\u540E\u6E90\u7801"}async function XXt(e){let t=document.createElement("div");t.style.cssText="position:fixed;left:-100000px;width:1200px;visibility:hidden;",t.setAttribute("aria-hidden","true"),document.body.append(t);try{let{svg:r}=await xN.render(`demo-original-${++wQe}`,e,t);Lr("before").innerHTML=r,Lr("stateBefore").textContent="\u539F\u6587\u53EF\u6E32\u67D3"}catch{let r=document.createElement("span");r.className="mermaid-syntax-error",r.textContent="\u8BED\u6CD5\u9519\u8BEF",Lr("before").replaceChildren(r),Lr("stateBefore").textContent="\u539F\u6587\u6E32\u67D3\u5931\u8D25"}finally{t.remove()}}async function IB(){let e=Lr("src").value;Lr("render").disabled=!0,Lr("sample").disabled=!0,Lr("state").textContent="\u4FEE\u590D\u4E2D\u2026",Lr("out").dataset.state="pending",K0?.destroy(),K0=null,Lr("out").replaceChildren(),bQe(""),LB([]);try{await XXt(e);let t=PVe(e);if(!t.ok)throw new Error(t.error);if(bQe(t.code),t.format==="mermaid"){Lr("afterTitle").textContent="\u4FEE\u590D\u540E \xB7 \u56FE\u8868";let{svg:n}=await xN.render(`demo-fixed-${++wQe}`,t.mermaid);Lr("out").innerHTML=n,Lr("state").textContent="\u539F\u751F\u56FE\u8868\u5DF2\u4FEE\u590D",Lr("out").dataset.state="ok",LB(t.fixes);return}Lr("afterTitle").textContent="\u4FEE\u590D\u540E \xB7 \u8111\u56FE";let{root:r}=YXt.transform(t.markdown??t.code),i=document.createElementNS("http://www.w3.org/2000/svg","svg");i.setAttribute("width",String(Lr("out").clientWidth)),i.setAttribute("height",String(Lr("out").clientHeight)),Lr("out").append(i),K0=RB.create(i,{duration:0,initialExpandLevel:-1,maxWidth:600,spacingHorizontal:80,spacingVertical:10}),await K0.setData(r),await K0.fit(),Lr("state").textContent="\u4FEE\u590D\u6210\u529F",Lr("out").dataset.state="ok",LB(t.fixes)}catch(t){K0?.destroy(),K0=null;let r=document.createElement("span");r.className="mermaid-syntax-error",r.textContent="\u8BED\u6CD5\u9519\u8BEF",Lr("out").replaceChildren(r),Lr("state").textContent="\u8F6C\u6362\u5931\u8D25",Lr("out").dataset.state="error",LB([String(t?.message??t)])}finally{Lr("render").disabled=!1,Lr("sample").disabled=!1}}var KXt={flowchart:`graph TD
     A["\u5F00\u59CB"] --> B{"\u662F\u5426\u4E0B\u96E8?"}
     B -->|"\u662F"| C["\u5E26\u96E8\u4F1E"]
     B -->|"\u5426"| D["\u4E0D\u7528\u5E26\u4F1E"]
