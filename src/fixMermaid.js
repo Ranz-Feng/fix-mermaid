@@ -10,23 +10,38 @@
  * 注意：不要在本文件中引入 (?<= / (?<! 后行断言，旧版 Safari 会在模块加载时直接抛 SyntaxError。
  */
 
-import { mermaidToMarkmap, normalizeMarkmap } from './markmap-convert.js';
+import { mermaidToMarkmap, normalizeMarkmap, countCitations, stripCitations } from './markmap-convert.js';
+
+// 判断输入是否已经是 Markmap Markdown：根标题 “# 标题”，或残留的语言标记（markmap / markdown / md）。
+function looksLikeMarkmap(input) {
+  const src = String(input).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const fence = src.match(/```\s*(?:markmap|markdown|md)[^\n]*\n([\s\S]*?)(?:\n\s*```|$)/i);
+  const body = fence ? fence[1] : src;
+  const first = body.split('\n').find((line) => line.trim()) || '';
+  return /^#\s+\S/.test(first.trim()) || /^(?:markmap|markdown|md)$/i.test(first.trim());
+}
 
 /** 一次修复调用。code 始终为 Markmap Markdown；是否能显示由渲染器确认。 */
 export function fixMermaid(input, options = {}) {
   try {
     if (typeof input !== 'string' || !input.trim()) throw new Error('输入为空');
-    if (options.inputFormat === 'markmap') {
+    const markmapInput = options.inputFormat === 'markmap' || looksLikeMarkmap(input);
+    if (markmapInput) {
       const code = normalizeMarkmap(input);
+      const notes = [];
+      if (options.inputFormat !== 'markmap') notes.push('输入已是 Markmap，按 Markmap 规范化');
+      if (countCitations(input) - countCitations(stripCitations(input))) notes.push('去除联网角标（如 [1]、[^2]）');
       return { ok: true, format: 'markmap', code, changed: code !== input,
-        fixes: ['规范 Markmap 标题和列表'], error: null };
+        fixes: ['规范 Markmap 标题和列表', ...notes], error: null };
     }
     const repaired = repairMermaidSyntax(input, options);
-    const { code, type } = mermaidToMarkmap(repaired.code, input);
+    const { code, type, citations } = mermaidToMarkmap(repaired.code, input);
     const dataChart = type === 'pie' || type.startsWith('xychart');
     const fixes = dataChart ? repaired.fixes.filter((note) => !/^(?:pie|xychart)：/.test(note)) : repaired.fixes;
+    // 原文里确实删掉了引用角标时，记录一条修复说明，便于前端展示。
+    const citationNote = citations > 0 ? ['去除联网角标（如 [1]、[^2]）'] : [];
     return { ok: true, format: 'markmap', code, sourceType: type, changed: code !== input,
-      fixes: [...fixes, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
+      fixes: [...fixes, ...citationNote, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
   } catch (e) {
     return { ok: false, format: 'markmap', code: '', changed: false, fixes: [],
       error: String(e?.message ?? e) };

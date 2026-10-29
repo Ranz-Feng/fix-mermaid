@@ -16,9 +16,52 @@ const textOf = (s) => unquote(s).replace(/^`([\s\S]*)`$/, '$1')
   .replace(/<br\s*\/?\s*>/gi, ' / ').replace(/#quot;/g, '"').replace(/#(\d+);/g, (_, n) => {
     const cp = Number(n); return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : '';
   });
+// 联网角标：AI 回答里的引用标注（[1]、[^2]、［3］）总是贴在句号/逗号旁边——标点前、
+// 标点后，或在行首/行尾（列表项里角标常出现在行尾，等价于“句末”）。只有这类才删除；
+// 句中出现、前后都不是标点的数字方括号（如“见[1]附录”“成绩[90]分”）视为正文保留。
+const CITATION_LINK_RE = /\[\s*\d{1,3}\s*\]\([^)]*\)|\[\s*\^\s*\d{1,3}\s*\]|［\s*\^\s*\d{1,3}\s*］/g;
+const BRACKET_REF_RE = /[\[［]\s*\d{1,3}\s*[\]］]/g;
+const SENTENCE_PUNCT = /[。，；：！？、,;:!?…]/;
+const FOOTNOTE_DEF_RE = /^\s*\[\^?\d{1,3}\]:\s*\S+/;
+
+function isCitationAt(text, start, end) {
+  let pi = -1;
+  for (let i = start - 1; i >= 0; i -= 1) if (!/\s/.test(text[i])) { pi = i; break; }
+  let ni = -1;
+  for (let i = end; i < text.length; i += 1) if (!/\s/.test(text[i])) { ni = i; break; }
+  if (pi < 0 || ni < 0) return true; // 行首 / 行尾（行尾即句末）
+  if (/\n/.test(text.slice(pi + 1, start)) || /\n/.test(text.slice(end, ni))) return true; // 跨行边界
+  return SENTENCE_PUNCT.test(text[pi]) || SENTENCE_PUNCT.test(text[ni]);
+}
+function stripBracketRefs(s) {
+  let text = String(s);
+  for (let pass = 0; pass < 10; pass += 1) {
+    let out = '', last = 0, changed = false;
+    BRACKET_REF_RE.lastIndex = 0;
+    let m;
+    while ((m = BRACKET_REF_RE.exec(text))) {
+      if (!isCitationAt(text, m.index, BRACKET_REF_RE.lastIndex)) continue;
+      out += text.slice(last, m.index);
+      last = BRACKET_REF_RE.lastIndex;
+      changed = true;
+    }
+    if (!changed) break;
+    text = out + text.slice(last);
+  }
+  return text;
+}
+export function stripCitations(s) {
+  const text = String(s).replace(CITATION_LINK_RE, ' ');
+  return stripBracketRefs(text).replace(/[ \t]{2,}/g, ' ').replace(/^[ \t]+|[ \t]+$/g, '');
+}
+export function countCitations(s) {
+  const text = String(s).replace(CITATION_LINK_RE, ' ');
+  BRACKET_REF_RE.lastIndex = 0;
+  return (text.match(BRACKET_REF_RE) || []).length;
+}
 // Generated nodes are literal text, never HTML, links, images, math or executable directives.
 export function escapeMarkdown(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return stripCitations(String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/[\\`*_{}\[\]()#+.!|$~]/g, '\\$&').replace(/[\r\n\u0000-\u001f]/g, ' ');
 }
 
@@ -34,7 +77,8 @@ function sourceBody(input) {
   }
   // Remove complete init directives, including multi-line directives.
   source = source.replace(/%%\{[\s\S]*?\}%%/g, '');
-  const lines = source.split('\n').filter((line) => !line.trim().startsWith('%%'));
+  const lines = source.split('\n')
+    .filter((line) => !line.trim().startsWith('%%') && !FOOTNOTE_DEF_RE.test(line));
   const index = lines.findIndex((line) => hasType(line.trim().split(/[\s;]/)[0])
     || /^(?:line|bar|xy)[\s_-]*chart\b/i.test(line.trim()));
   return { lines: index < 0 ? lines : lines.slice(index), title };
@@ -242,15 +286,17 @@ function statementTree(lines, title) {
 
 function serialize(root) {
   if (!root.text.trim()) throw new Error('图表标题为空');
+  let citations = countCitations(root.text) - countCitations(stripCitations(root.text));
   const out = [`# ${escapeMarkdown(root.text)}`]; let count = 0;
   const todo = root.children.slice().reverse().map((n) => ({ n, depth: 0 }));
   while (todo.length) {
     const { n, depth } = todo.pop();
     if (++count > 5000 || depth > 100) throw new Error('图表节点或层级超过本地转换上限');
+    citations += countCitations(n.text) - countCitations(stripCitations(n.text));
     out.push(`${'  '.repeat(depth)}- ${escapeMarkdown(n.text)}`);
     for (let i = n.children.length - 1; i >= 0; i--) todo.push({ n: n.children[i], depth: depth + 1 });
   }
-  return `${out.join('\n')}\n`;
+  return { code: `${out.join('\n')}\n`, citations };
 }
 
 export function mermaidToMarkmap(repaired, original = repaired) {
@@ -267,19 +313,27 @@ export function mermaidToMarkmap(repaired, original = repaired) {
   else if (type === 'sequenceDiagram') tree = sequenceTree(lines, title);
   else if (type === 'pie' || type.startsWith('xychart')) tree = dataTree(original, type, title);
   else tree = statementTree(lines, title || TITLES[type]);
-  return { code: serialize(tree), type };
+  const { code, citations } = serialize(tree);
+  return { code, type, citations };
 }
 
 export function normalizeMarkmap(input) {
-  const code = input.trim().replace(/^```(?:markmap|markdown|md)?\s*\n/i, '').replace(/\n```\s*$/, '');
-  const lines = code.replace(/\r\n?/g, '\n').split('\n');
+  const code = String(input).trim().replace(/^```(?:markmap|markdown|md)?\s*\n/i, '').replace(/\n```\s*$/, '');
+  const lines = code.replace(/\r\n?/g, '\n').split('\n')
+    // 兼容被剥掉反引号后只剩语言标记（markmap / markdown / md）的输入，也顺手丢弃脚注定义行。
+    .filter((s, i) => !(i === 0 && /^[ \t]*(?:markmap|markdown|md)[ \t]*$/i.test(s)))
+    .filter((s) => !FOOTNOTE_DEF_RE.test(s));
   if (!/^#\s+\S/.test(lines[0])) throw new Error('Markmap 缺少根标题');
   if (lines.slice(1).some((s) => s.trim() && !/^\s*-\s+\S/.test(s))) throw new Error('Markmap 包含非树状内容');
   // Decode our literal serialization once, then escape again; repeated calls are idempotent.
   const literal = (s) => s.replace(/\\([\\`*_{}\[\]()#+.!|$~])/g, '$1')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  return `${lines.filter((s) => s.trim()).map((s, i) => {
+  const kept = lines.map((s, i) => {
     const m = s.match(i ? /^(\s*-\s+)(.*)$/ : /^(#\s+)(.*)$/);
-    return m[1] + escapeMarkdown(literal(m[2].trim()));
-  }).join('\n')}\n`;
+    const label = literal(m[2].trim());
+    // 形如 “- [1]” 的纯角标条目、以及写成列表项的脚注定义（“- [1]: 链接”）直接删除。
+    if (i > 0 && (!stripCitations(label).trim() || FOOTNOTE_DEF_RE.test(label))) return null;
+    return m[1] + escapeMarkdown(label);
+  }).filter((s) => s !== null);
+  return `${kept.join('\n')}\n`;
 }

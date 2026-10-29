@@ -31,6 +31,7 @@ LLMs write Mermaid well most of the time, but a noticeable fraction of diagrams 
 - **Degrades gracefully.** If a diagram cannot be repaired, the bundled render helper shows the source code with a copy button instead of a blank area or an error stack.
 - **Handles streaming.** While the LLM is still writing, half-finished diagrams do not flash errors. The last good render stays on screen until the output is complete.
 - **Observable.** Every repair reports which rules fired (`fixes`), so you can feed the data back into prompts and rules.
+- **Web citation badges removed.** Markers such as `[1]`, `[^2]` or `［3］` that close a sentence (next to `。`/`，` or at the end of a line) never reach the mind map. Numeric brackets inside a sentence (e.g. `成绩[90]分`) stay as content.
 - **Broad compatibility.** No regex lookbehind is used, so it runs on iOS/Safari 13.4+, Chrome 80+, and Firefox 78+.
 
 

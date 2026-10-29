@@ -73,3 +73,42 @@ test('sequence message order and punctuation are preserved', () => {
   assert.ok(r.code.indexOf('步骤 1') < r.code.indexOf('步骤 2'));
   assert.ok(r.code.indexOf('步骤 4') < r.code.indexOf('步骤 5'));
 });
+test('web citation markers are stripped from mindmap and flowchart output', () => {
+  const mind = fixMermaid('mindmap\n  root((郑钦文))\n    排名: 世界第7位[2]\n    代言[30]\n    退出[1][5]');
+  assert.ok(mind.ok, mind.error);
+  const text = labels(mind.code);
+  assert.doesNotMatch(text, /[\[［]\s*\d{1,3}\s*[\]］]/);
+  assert.match(text, /世界第7位/);
+  assert.ok(mind.fixes.some((note) => note.includes('联网角标')));
+  const again = fixMermaid(mind.code, { inputFormat: 'markmap' });
+  assert.equal(again.code, mind.code);
+  const flow = fixMermaid('flowchart TD\nA[看新闻[1]] --> B[完成]');
+  assert.ok(flow.ok, flow.error);
+  assert.doesNotMatch(labels(flow.code), /[\[［]\s*\d{1,3}\s*[\]］]/);
+});
+test('markmap input with residual language tag or bare citation items converts cleanly', () => {
+  const md = 'markmap\n# 郑钦文近期动态\n- 赛事：中网夺冠 [3][9]\n- [1]\n- [1]: https://example.com\n- 区间[0,1]';
+  const r = fixMermaid(md);
+  assert.ok(r.ok, r.error);
+  assert.doesNotMatch(r.code, /\\?\[[0-9]{1,3}\]/);
+  const text = labels(r.code);
+  assert.match(text, /中网夺冠/);
+  assert.match(text, /区间\[0,1\]/);
+  assert.equal(fixMermaid(r.code, { inputFormat: 'markmap' }).code, r.code);
+});
+test('citation removal is punctuation/boundary aware, not blanket', async () => {
+  const { stripCitations } = await import('../src/markmap-convert.js');
+  assert.equal(stripCitations('世界第7位[2]。'), '世界第7位。');
+  assert.equal(stripCitations('。[2]接下来'), '。接下来');
+  assert.equal(stripCitations('世界第7位[2]'), '世界第7位'); // 行尾 = 句末
+  assert.equal(stripCitations('退出[1][5]'), '退出');
+  assert.equal(stripCitations('见[1]附录'), '见[1]附录'); // 句中出现，保留
+  assert.equal(stripCitations('成绩[90]分'), '成绩[90]分'); // 后面还有字，保留
+  assert.equal(stripCitations('区间[0,1]'), '区间[0,1]');
+  const kept = fixMermaid('mindmap\n  root((测试))\n    见[1]附录\n    成绩[90]分\n    排名第7位[2]');
+  assert.ok(kept.ok, kept.error);
+  const text = labels(kept.code);
+  assert.match(text, /见\[1\]附录/);
+  assert.match(text, /成绩\[90\]分/);
+  assert.doesNotMatch(text, /第7位\[2\]/);
+});
