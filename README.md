@@ -25,7 +25,7 @@ LLMs write Mermaid well most of the time, but a noticeable fraction of diagrams 
 ## Highlights
 
 - **Runs locally.** Pure string processing, no DOM access or runtime dependencies. Keep the two ES modules `src/fixMermaid.js` and `src/markmap-convert.js` together when copying them into a project.
-- **Fixes most LLM Mermaid errors.** It covers flowcharts, sequence, class, state, ER, pie, bar/line (`xychart`), and mind map diagrams. In real-browser tests, 20 out of 20 fixable broken diagrams rendered correctly after repair.
+- **Fixes most LLM Mermaid errors.** It covers flowcharts, sequence, class, state, ER, pie, bar/line (`xychart`), gantt, and mind map diagrams. In real-browser tests, 20 out of 20 fixable broken diagrams rendered correctly after repair.
 - **Never breaks a valid diagram.** `safeRepairMermaid` first validates the input with the same `mermaid.parse` you render with. Valid code is returned untouched, and repaired code is re-validated before it is used.
 - **Catches diagrams that parse but render wrong.** For example, the mind map node `数学(微积分)` parses fine but loses the text outside the brackets. A semantic check detects this and repairs it.
 - **Degrades gracefully.** If a diagram cannot be repaired, the bundled render helper shows the source code with a copy button instead of a blank area or an error stack.
@@ -178,6 +178,7 @@ Select **Settings → Pages → Build and deployment → Source → GitHub Actio
 | Class / State / ER     | Unbalanced `{ }`, with the closing brace position inferred from indentation; full-width colons; unquoted ER relationship labels; missing ER labels                                                                                                                                                             |
 | Pie                    | Unquoted, single-quoted, or curly-quoted labels; full-width colon; `45%`, `¥1,200万`, `800 万元` values; `title:`; rows without a number are dropped (reported in `fixes`); negative values are dropped                                                                                                           |
 | Bar / line (`xychart`) | Non-ASCII titles, axis titles, categories, and series names without quotes; full-width brackets and commas; ranges written as `0 ~ 100` or `0 - 100`; `bar:` / `x-axis:` with a colon; values with `%` or units                                                                                                |
+| Gantt | `section` becomes a group; tasks show `开始：date` and `工期：5d`; dependencies like `after a1` become `在「需求分析」之后`; directives such as `dateFormat` / `axisFormat` never reach the outline                                                                                                                |
 | Mind map               | Markdown headings (`#`, `##`) and list markers (`-`, `*`, `1.`) converted to indentation; multiple roots re-parented under the first root; text containing brackets quoted; text such as `数学(微积分)` that parses but silently loses characters                                                                   |
 
 

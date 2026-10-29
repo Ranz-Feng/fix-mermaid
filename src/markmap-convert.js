@@ -232,6 +232,40 @@ function sequenceTree(lines, title) {
   return node(title || '时序图', [node('参与者', [...names].map(([id, name]) => node(name === id ? name : `${name}（${id}）`))), ...events]);
 }
 
+// Gantt: sections become groups, tasks carry their start/duration metadata as readable text.
+const GANTT_DIRECTIVES = /^(?:dateFormat|axisFormat|tickInterval|todayMarker|excludes|weekend|weekday|inclusiveEndDates|topAxis|displayMode|click|accDescription|accTitle)\b/i;
+const GANTT_TAGS = /^(?:crit|done|active|milestone|vert)\b/i;
+function ganttTree(lines, title) {
+  const root = node(title || TITLES.gantt);
+  const names = new Map(); let section = null;
+  for (const raw of lines) {
+    const s = raw.trim();
+    if (!s) continue;
+    const heading = s.match(/^title\s+(.+)$/i);
+    if (heading) { root.text = textOf(heading[1]); continue; }
+    if (GANTT_DIRECTIVES.test(s)) continue;
+    const sec = s.match(/^section\s+(.+)$/i);
+    if (sec) { section = node(textOf(sec[1])); root.children.push(section); continue; }
+    const task = s.match(/^(?:"([^"]*)"|([^:]*?))\s*:\s*(.+)$/);
+    if (!task) continue;
+    const name = textOf((task[1] ?? task[2] ?? '').trim());
+    const parts = task[3].split(/[,，]/).map((p) => p.trim()).filter(Boolean);
+    while (parts.length && GANTT_TAGS.test(parts[0])) parts.shift();
+    const id = parts.length && /^[A-Za-z][A-Za-z0-9_-]*$/.test(parts[0]) && !/^after\b/i.test(parts[0]) && !/^\d{4}-/.test(parts[0]) ? parts.shift() : '';
+    const after = (parts[0] || '').match(/^after\s+(\S+)$/i);
+    const desc = [];
+    if (after) desc.push(`在「${names.get(after[1]) || after[1]}」之后`);
+    else if (parts[0]) desc.push(`开始：${parts[0]}`);
+    const rest = after ? parts.slice(1) : parts.slice(1);
+    if (rest.length) desc.push(`工期：${rest.join('，')}`);
+    const label = desc.length ? `${name}（${desc.join('，')}）` : name;
+    if (id) names.set(id, name);
+    (section || root).children.push(node(label));
+  }
+  if (!root.children.length) throw new Error('甘特图内容为空');
+  return root;
+}
+
 // Data values come from the ORIGINAL source: never discard units, percentages or “待定”.
 function dataTree(original, type, title) {
   const rows = sourceBody(original).lines;
@@ -247,9 +281,18 @@ function dataTree(original, type, title) {
     }
     const axis = s.match(/^(x-axis|y-axis)\s*:?\s*(.*)$/i);
     if (axis) {
+      const isX = axis[1].toLowerCase() === 'x-axis';
       const values = axis[2].match(/[\[［【]([\s\S]*)[\]］】]/);
-      if (axis[1] === 'x-axis' && values) categories = values[1].split(/[,，]/).map(textOf);
-      children.push(node(`${axis[1] === 'x-axis' ? '横轴' : '纵轴'}：${axis[2]}`)); continue;
+      if (isX && values) {
+        categories = values[1].split(/[,，]/).map((v) => textOf(v.trim()));
+        children.push(node(`横轴：${categories.join('、')}`));
+      } else {
+        const name = axis[2].match(/^(?:"([^"]*)"|'([^']*)'|([^\s\[\]]+))/);
+        const range = axis[2].match(/(-?\d+(?:\.\d+)?)\s*-->?\s*(-?\d+(?:\.\d+)?)/);
+        const label = name ? textOf(name[1] ?? name[2] ?? name[3]) : axis[2].trim();
+        children.push(node(`${isX ? '横轴' : '纵轴'}：${label}${range ? `（${range[1]} → ${range[2]}）` : ''}`));
+      }
+      continue;
     }
     const values = s.match(/^(bar|line)\s*:?\s*(.*?)\s*[\[［【]([\s\S]*)[\]］】]\s*$/i);
     if (!values) throw new Error(`无法识别图表数据：${s}`);
@@ -315,6 +358,7 @@ export function mermaidToMarkmap(repaired, original = repaired) {
   if (type === 'flowchart' || type === 'graph') tree = flowTree(lines, title);
   else if (type === 'mindmap') tree = mindTree(lines, title);
   else if (type === 'sequenceDiagram') tree = sequenceTree(lines, title);
+  else if (type === 'gantt') tree = ganttTree(lines, title);
   else if (type === 'pie' || type.startsWith('xychart')) tree = dataTree(original, type, title);
   else tree = statementTree(lines, title || TITLES[type]);
   const { code, citations } = serialize(tree);

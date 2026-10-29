@@ -63,6 +63,14 @@
       <div class="bar">
         <button class="primary" id="render" disabled>修复并生成脑图</button>
         <button type="button" id="sample">加载脑图示例</button>
+        <select id="example" aria-label="其他图表示例">
+          <option value="">加载其他图表示例…</option>
+          <option value="flowchart">流程图</option>
+          <option value="gantt">甘特图</option>
+          <option value="sequence">时序图</option>
+          <option value="pie">饼图</option>
+          <option value="xychart">XY 图</option>
+        </select>
       </div>
       <textarea id="src" spellcheck="false" aria-label="Mermaid 源码"></textarea>
     </section>
@@ -178,8 +186,53 @@ async function preview() {
     log([String(error?.message ?? error)]);
   } finally { $('render').disabled = false; $('sample').disabled = false; }
 }
+const examples = {
+  flowchart: `graph TD
+    A["开始"] --> B{"是否下雨?"}
+    B -->|"是"| C["带雨伞"]
+    B -->|"否"| D["不用带伞"]
+    C --> E["出门"]
+    D --> E["出门"]`,
+  gantt: `gantt
+    title "项目开发计划"
+    dateFormat  YYYY-MM-DD
+    section "设计阶段"
+    "需求分析"        :a1, 2024-01-01, 5d
+    "UI设计"          :a2, after a1, 7d
+    section "开发阶段"
+    "前端开发"        :b1, after a2, 10d
+    "后端开发"        :b2, after a2, 12d
+    section "测试阶段"
+    "集成测试"        :c1, after b2, 5d`,
+  sequence: `sequenceDiagram
+    participant 用户
+    participant 前端
+    participant 服务器
+    用户->>前端: "提交登录请求"
+    前端->>服务器: "发送账号密码"
+    服务器-->>前端: "返回验证结果"
+    前端-->>用户: "显示登录成功"`,
+  pie: `pie title "各部门人数占比"
+    "研发部" : 45
+    "市场部" : 20
+    "销售部" : 25
+    "行政部" : 10`,
+  xychart: `xychart-beta
+    title "月度销售额"
+    x-axis ["一月", "二月", "三月", "四月", "五月"]
+    y-axis "销售额(万元)" 0 --> 100
+    bar [30, 45, 60, 50, 80]
+    line [30, 45, 60, 50, 80]`
+};
 $('render').onclick = preview;
 $('sample').onclick = () => { $('src').value = mindmapExample; preview(); };
+$('example').onchange = () => {
+  const picked = examples[$('example').value];
+  if (!picked) return;
+  $('src').value = picked;
+  $('example').value = '';
+  preview();
+};
 $('toggleFixedSrc').onclick = () => {
   $('fixedSrcPanel').hidden = !$('fixedSrcPanel').hidden;
   $('toggleFixedSrc').textContent = $('fixedSrcPanel').hidden ? '展示修复后源码' : '隐藏源码';
