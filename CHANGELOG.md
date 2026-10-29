@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `fixMermaid` now only converts mind maps to Markmap. Every other diagram type (flowchart, gantt, sequence, pie, xychart, class/state/ER, …) is returned as repaired ```mermaid source (`format: 'mermaid'`) so Mermaid renders it in its native style; `asMarkmap: true` still forces the tree conversion.
+- Demo renders native Mermaid for those types and keeps showing the repaired source (```mermaid or ```markmap).
 - Gantt diagrams convert into grouped task outlines (`section` groups, `开始/工期`, `after a1` resolved to task names); axis labels of `xychart` are formatted as readable text.
 - The demo gained an example picker for flowchart, gantt, sequence, pie and xychart inputs.
 - `fixMermaid` output now carries the ```markmap code fence: `code` is a complete fenced block, `markdown` is the bare Markdown body. The demo's repaired-source panel shows and copies the fenced block.

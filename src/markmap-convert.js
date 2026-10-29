@@ -327,6 +327,20 @@ function statementTree(lines, title) {
   return root;
 }
 
+/** 判断输入属于哪种 Mermaid 图表（用于决定输出 Markmap 还是原生 Mermaid）。 */
+export function diagramType(input) {
+  try {
+    const { lines } = sourceBody(String(input));
+    const header = (lines.find((line) => line.trim()) || '').trim();
+    const type = header.split(/[\s;]/)[0];
+    if (hasType(type)) return type;
+    if (/^(?:line|bar|xy)[\s_-]*chart\b/i.test(header)) return 'xychart';
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 /** 把 Markmap Markdown 包成 ```markmap 代码块，便于展示和复制。 */
 export function fenceMarkmap(markdown) {
   return `\`\`\`markmap\n${String(markdown).replace(/\n+$/, '')}\n\`\`\`\n`;

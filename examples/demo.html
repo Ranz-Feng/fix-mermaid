@@ -81,7 +81,7 @@
       </section>
       <section class="card after" id="markmapPanel">
         <div class="panel-head">
-          <h2>修复后 · 脑图</h2>
+          <h2 id="afterTitle">修复后 · 脑图</h2>
           <div class="panel-actions">
             <button type="button" id="fit">适应视图</button>
             <button type="button" id="fullscreen">全屏查看</button>
@@ -168,6 +168,17 @@ async function preview() {
     const result = fixMermaid(source);
     if (!result.ok) throw new Error(result.error);
     sourceResult(result.code);
+    if (result.format === 'mermaid') {
+      // 流程图、甘特图、时序图、饼图、XY 图保留原生 Mermaid，由 Mermaid 自己渲染。
+      $('afterTitle').textContent = '修复后 · 图表';
+      const { svg } = await mermaid.render(`demo-fixed-${++seq}`, result.mermaid);
+      $('out').innerHTML = svg;
+      $('state').textContent = '原生图表已修复';
+      $('out').dataset.state = 'ok';
+      log(result.fixes);
+      return;
+    }
+    $('afterTitle').textContent = '修复后 · 脑图';
     const { root } = transformer.transform(result.markdown ?? result.code);
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     // Numeric SVG dimensions keep zoom/fullscreen transitions valid in file:// pages too.

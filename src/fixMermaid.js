@@ -10,7 +10,7 @@
  * 注意：不要在本文件中引入 (?<= / (?<! 后行断言，旧版 Safari 会在模块加载时直接抛 SyntaxError。
  */
 
-import { mermaidToMarkmap, normalizeMarkmap, countCitations, stripCitations } from './markmap-convert.js';
+import { mermaidToMarkmap, normalizeMarkmap, countCitations, stripCitations, diagramType } from './markmap-convert.js';
 
 // 判断输入是否已经是 Markmap Markdown：根标题 “# 标题”，或残留的语言标记（markmap / markdown / md）。
 function looksLikeMarkmap(input) {
@@ -21,7 +21,13 @@ function looksLikeMarkmap(input) {
   return /^#\s+\S/.test(first.trim()) || /^(?:markmap|markdown|md)$/i.test(first.trim());
 }
 
-/** 一次修复调用。code 是带 ```markmap 围栏的 Markmap 代码块，markdown 是不带围栏的正文；能否显示由渲染器确认。 */
+const fence = (lang, text) => `\`\`\`${lang}\n${String(text).replace(/\n+$/, '')}\n\`\`\`\n`;
+
+/** 一次修复调用。
+ *  - 脑图（mindmap）或已转换的 Markmap 输入 → format 'markmap'，code 是 ```markmap 代码块（左→右树形大纲）；
+ *  - 其他图表（流程图 / 甘特图 / 时序图 / 饼图 / XY 图 …）→ format 'mermaid'，code 是修复后的 ```mermaid 源码，由原生渲染器显示。
+ * markdown/mermaid 是不带围栏的正文；能否显示由渲染器确认。
+ */
 export function fixMermaid(input, options = {}) {
   try {
     if (typeof input !== 'string' || !input.trim()) throw new Error('输入为空');
@@ -35,13 +41,24 @@ export function fixMermaid(input, options = {}) {
         fixes: ['规范 Markmap 标题和列表', ...notes], error: null };
     }
     const repaired = repairMermaidSyntax(input, options);
-    const { code, markdown, type, citations } = mermaidToMarkmap(repaired.code, input);
-    const dataChart = type === 'pie' || type.startsWith('xychart');
-    const fixes = dataChart ? repaired.fixes.filter((note) => !/^(?:pie|xychart)：/.test(note)) : repaired.fixes;
-    // 原文里确实删掉了引用角标时，记录一条修复说明，便于前端展示。
-    const citationNote = citations > 0 ? ['去除联网角标（如 [1]、[^2]）'] : [];
-    return { ok: true, format: 'markmap', code, markdown, sourceType: type, changed: code !== input,
-      fixes: [...fixes, ...citationNote, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
+    const sourceType = diagramType(repaired.code);
+    if (!sourceType) throw new Error('无法识别 Mermaid 图表类型');
+    const wantMarkmap = options.asMarkmap === true || options.outputFormat === 'markmap' || sourceType === 'mindmap';
+    if (wantMarkmap) {
+      const { code, markdown, type, citations } = mermaidToMarkmap(repaired.code, input);
+      const dataChart = type === 'pie' || type.startsWith('xychart');
+      const fixes = dataChart ? repaired.fixes.filter((note) => !/^(?:pie|xychart)：/.test(note)) : repaired.fixes;
+      // 原文里确实删掉了引用角标时，记录一条修复说明，便于前端展示。
+      const citationNote = citations > 0 ? ['去除联网角标（如 [1]、[^2]）'] : [];
+      return { ok: true, format: 'markmap', code, markdown, sourceType, changed: code !== input,
+        fixes: [...fixes, ...citationNote, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
+    }
+    const body = repaired.code.trim();
+    if (!body.split('\n').slice(1).some((line) => line.trim() && !line.trim().startsWith('%%'))) {
+      throw new Error('图表没有可转换的内容');
+    }
+    return { ok: true, format: 'mermaid', code: fence('mermaid', body), mermaid: body, sourceType,
+      changed: body !== input.trim(), fixes: [...repaired.fixes, '保留原始图表类型（Mermaid 源码）'], error: null };
   } catch (e) {
     return { ok: false, format: 'markmap', code: '', changed: false, fixes: [],
       error: String(e?.message ?? e) };

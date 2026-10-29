@@ -49,18 +49,20 @@ try {
   await page.locator('#sample').click();
   await page.waitForFunction(() => document.querySelector('#out').dataset.state === 'ok');
 
-  // Other diagram families load from the example picker and render as outlines too.
+  // Other diagram families keep their native Mermaid source and render with Mermaid.
   await page.selectOption('#example', 'gantt');
   await page.waitForFunction(() => document.querySelector('#out').dataset.state === 'ok');
   await page.locator('#toggleFixedSrc').click();
   const ganttSrc = await page.locator('#fixedSrc').textContent();
-  assert.match(ganttSrc, /# 项目开发计划/);
-  assert.match(ganttSrc, /在「需求分析」之后/);
-  assert.doesNotMatch(ganttSrc, /dateFormat/);
+  assert.match(ganttSrc, /^```mermaid\ngantt\n/);
+  assert.match(ganttSrc, /"需求分析"/);
+  assert.equal(await page.locator('#afterTitle').textContent(), '修复后 · 图表');
   await page.locator('#toggleFixedSrc').click();
   await page.selectOption('#example', 'xychart');
   await page.waitForFunction(() => document.querySelector('#out').dataset.state === 'ok');
-  assert.match(await page.locator('#out').textContent(), /横轴：一月、二月、三月/);
+  await page.locator('#toggleFixedSrc').click();
+  assert.match(await page.locator('#fixedSrc').textContent(), /^```mermaid\nxychart-beta\n/);
+  await page.locator('#toggleFixedSrc').click();
   await page.locator('#fit').click();
   await page.locator('#toggleFixedSrc').click();
   await page.locator('#copyFixedSrc').click();

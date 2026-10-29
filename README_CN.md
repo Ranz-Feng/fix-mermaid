@@ -4,13 +4,18 @@
 
 # fix-mermaid.js
 
-**本地修复 Mermaid，并固定输出 Markmap Markdown 的 JavaScript 工具。**
+**本地修复 Mermaid 语法错误：脑图输出 Markmap（左→右树形大纲），其他图表输出修复后的原生 Mermaid 源码。**
 
 本分支的 `fixMermaid` 每次调用只执行一次转换，不调用模型、不渲染图表、不管理重试。后端负责在原图渲染失败后调用工具，并根据后续渲染结果决定是否再次调用（业务上限 3 次）以及最终失败展示。
 
-成功结果为 `{ ok: true, format: 'markmap', code, markdown, changed, fixes, error: null }`。`code` 是带 ```markmap 围栏的完整代码块（可直接展示、复制、贴给 Markmap 渲染器），`markdown` 是不带围栏的 Markdown 正文（渲染器可直接用 `markdown`）。`ok` 表示转换成功，实际显示是否成功仍需调用方验证。
+成功结果为 `{ ok: true, format, code, changed, fixes, error: null }`，按图表类型分两种：
 
-为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已接入新的 Markmap 输出；在线体验页由下方 GitHub Pages 工作流发布。
+- **脑图（mindmap）**：`format: 'markmap'`，`code` 是带 ```markmap 围栏的完整代码块，`markdown` 是不带围栏的正文——交给 Markmap 渲染器，得到产品要的左→右树形大纲。
+- **流程图 / 甘特图 / 时序图 / 饼图 / XY 图等**：`format: 'mermaid'`，`code` 是修复后的 ```mermaid 源码，`mermaid` 是不带围栏的源码——交给 Mermaid 原生渲染器，保持该图表本来的样式（不会变成脑图）。
+
+`ok` 表示修复成功，实际显示是否成功仍需调用方验证。
+
+为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已同时演示两条链路（脑图走 Markmap，其他图表走原生 Mermaid）；在线体验页由下方 GitHub Pages 工作流发布。
 
 <p align="center">
   <a href="https://le9070124-dot.github.io/fix-mermaid/"><strong>在线示例</strong></a>
@@ -198,11 +203,11 @@ npm run build:site
 
 
 
-### `fixMermaid(input, options?) → { ok, format, code, changed, fixes, error, sourceType? }`
+### `fixMermaid(input, options?) → { ok, format, code, markdown?, mermaid?, changed, fixes, error, sourceType? }`
 
-同步执行一次本地修复与转换，不会抛出异常，`format` 固定为 `markmap`。无法可靠转换时返回 `ok: false, code: '', error: '具体原因'`，不把 Mermaid 源码伪装成成功的 Markmap。
+同步执行一次本地修复，不会抛出异常。`format` 为 `'markmap'`（脑图）或 `'mermaid'`（其他图表）；也可传 `asMarkmap: true` 强制任意图表转成 Markmap 树。无法可靠转换时返回 `ok: false, code: '', error: '具体原因'`，不把源图伪装成成功的输出。
 
-- 思维导图保留层级；流程图保留节点、分支及关系，循环和共享节点使用“返回 / 关联”文字表达。
+- 脑图转 Markmap 时保留层级；可用 `asMarkmap: true` 把其他图表也转成树（流程图循环和共享节点用“返回 / 关联”文字表达）。
 - 时序图保留参与者、消息顺序和条件块；数据图表保留原始数值、单位、百分号和“待定”等内容。
 - 类图、ER 图、状态图以及其他已识别类型，按原语句和块层级组织成树，关系符号保留为文字。不会恢复原图的几何布局。
 - 相同输入与参数得到相同输出；重试策略和次数由后端决定。若后端回传上一次的 Markmap，显式设置 `inputFormat: 'markmap'`，进行标题/列表规范化。

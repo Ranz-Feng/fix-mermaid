@@ -4,13 +4,18 @@
 
 # fix-mermaid.js
 
-**A local JavaScript tool that repairs Mermaid and returns Markmap Markdown.**
+**A local repair tool: mind maps come out as Markmap (left-to-right outline), every other diagram keeps its native Mermaid source.**
 
 In this branch, each `fixMermaid` call performs one local conversion. The backend owns the failure trigger, retry policy (up to three calls), and final error display. The tool does not call a model or render a diagram.
 
-Successful results contain `{ ok: true, format: 'markmap', code, markdown, changed, fixes, error: null }`. `code` is a complete ```markmap block (fence included, ready to display, copy or hand to a Markmap renderer); `markdown` is the bare Markdown body for renderers. `ok` means conversion succeeded; the caller must still check actual rendering.
+Successful results contain `{ ok: true, format, code, changed, fixes, error: null }`, with two shapes:
 
-The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` now previews Markmap output; the hosted demo is published by the GitHub Pages workflow below.
+- **Mind map (`mindmap`)**: `format: 'markmap'`; `code` is a complete ```markmap block ready to display or copy, `markdown` is the bare body — render it with Markmap to get the left-to-right outline.
+- **Flowchart / gantt / sequence / pie / xychart / …**: `format: 'mermaid'`; `code` is the repaired ```mermaid source, `mermaid` is the bare source — render it with Mermaid so the diagram keeps its native look instead of turning into a mind map.
+
+`ok` means the repair succeeded; the caller must still verify rendering.
+
+The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` previews both paths (Markmap for mind maps, native Mermaid for everything else); the hosted demo is published by the GitHub Pages workflow below.
 
 <p align="center">
   <a href="https://le9070124-dot.github.io/fix-mermaid/"><strong>Live demo</strong></a>
@@ -31,6 +36,7 @@ LLMs write Mermaid well most of the time, but a noticeable fraction of diagrams 
 - **Degrades gracefully.** If a diagram cannot be repaired, the bundled render helper shows the source code with a copy button instead of a blank area or an error stack.
 - **Handles streaming.** While the LLM is still writing, half-finished diagrams do not flash errors. The last good render stays on screen until the output is complete.
 - **Observable.** Every repair reports which rules fired (`fixes`), so you can feed the data back into prompts and rules.
+- **Native diagrams stay native.** Flowcharts, gantt charts, sequence diagrams, pie and XY charts are returned as repaired Mermaid source, so Mermaid renders them in their own style; only mind maps are converted to a Markmap outline (`asMarkmap: true` converts any diagram when a tree is wanted).
 - **Web citation badges removed.** Markers such as `[1]`, `[^2]` or `［3］` that close a sentence (next to `。`/`，` or at the end of a line) never reach the mind map. Numeric brackets inside a sentence (e.g. `成绩[90]分`) stay as content.
 - **Broad compatibility.** No regex lookbehind is used, so it runs on iOS/Safari 13.4+, Chrome 80+, and Firefox 78+.
 
