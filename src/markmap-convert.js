@@ -284,6 +284,10 @@ function statementTree(lines, title) {
   return root;
 }
 
+/** 把 Markmap Markdown 包成 ```markmap 代码块，便于展示和复制。 */
+export function fenceMarkmap(markdown) {
+  return `\`\`\`markmap\n${String(markdown).replace(/\n+$/, '')}\n\`\`\`\n`;
+}
 function serialize(root) {
   if (!root.text.trim()) throw new Error('图表标题为空');
   let citations = countCitations(root.text) - countCitations(stripCitations(root.text));
@@ -314,7 +318,7 @@ export function mermaidToMarkmap(repaired, original = repaired) {
   else if (type === 'pie' || type.startsWith('xychart')) tree = dataTree(original, type, title);
   else tree = statementTree(lines, title || TITLES[type]);
   const { code, citations } = serialize(tree);
-  return { code, type, citations };
+  return { code: fenceMarkmap(code), markdown: code, type, citations };
 }
 
 export function normalizeMarkmap(input) {
@@ -335,5 +339,5 @@ export function normalizeMarkmap(input) {
     if (i > 0 && (!stripCitations(label).trim() || FOOTNOTE_DEF_RE.test(label))) return null;
     return m[1] + escapeMarkdown(label);
   }).filter((s) => s !== null);
-  return `${kept.join('\n')}\n`;
+  return fenceMarkmap(`${kept.join('\n')}\n`);
 }

@@ -160,7 +160,7 @@ async function preview() {
     const result = fixMermaid(source);
     if (!result.ok) throw new Error(result.error);
     sourceResult(result.code);
-    const { root } = transformer.transform(result.code);
+    const { root } = transformer.transform(result.markdown ?? result.code);
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     // Numeric SVG dimensions keep zoom/fullscreen transitions valid in file:// pages too.
     svg.setAttribute('width', String($('out').clientWidth));

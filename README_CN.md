@@ -8,7 +8,7 @@
 
 本分支的 `fixMermaid` 每次调用只执行一次转换，不调用模型、不渲染图表、不管理重试。后端负责在原图渲染失败后调用工具，并根据后续渲染结果决定是否再次调用（业务上限 3 次）以及最终失败展示。
 
-成功结果为 `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`。`code` 是不带代码围栏的 Markdown，需要交给 **Markmap 渲染器**。`ok` 表示转换成功，实际显示是否成功仍需调用方验证。
+成功结果为 `{ ok: true, format: 'markmap', code, markdown, changed, fixes, error: null }`。`code` 是带 ```markmap 围栏的完整代码块（可直接展示、复制、贴给 Markmap 渲染器），`markdown` 是不带围栏的 Markdown 正文（渲染器可直接用 `markdown`）。`ok` 表示转换成功，实际显示是否成功仍需调用方验证。
 
 为兼容原有使用方，`repairMermaidSyntax`、`safeRepairMermaid` 和 `fix-mermaid/render` 保留 Mermaid 语法修复行为。本地 `examples/demo.html` 已接入新的 Markmap 输出；在线体验页由下方 GitHub Pages 工作流发布。
 
@@ -157,7 +157,7 @@ npm run demo
 # 打开 http://127.0.0.1:8765/examples/demo.html
 ```
 
-左侧粘贴 Mermaid 或加载脑图示例，点击“修复并生成脑图”。右侧显示原始 Mermaid 和转换后的 Markmap，支持缩放、拖动、折叠、全屏及复制返回源码。每次点击只调用一次工具。开发演示页从本地加载依赖，通过上述 HTTP 地址打开。
+左侧粘贴 Mermaid 或加载脑图示例，点击“修复并生成脑图”。右侧显示原始 Mermaid 和转换后的 Markmap，支持缩放、拖动、折叠、全屏；“展示修复后源码”会展开完整的 ```markmap 代码块（含围栏）并可一键复制。每次点击只调用一次工具。开发演示页从本地加载依赖，通过上述 HTTP 地址打开。
 
 ### 8. 发布 GitHub Pages
 

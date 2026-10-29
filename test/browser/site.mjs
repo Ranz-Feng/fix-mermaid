@@ -24,7 +24,7 @@ try {
   assert.equal(await page.locator('#out foreignObject').count(), 24);
   assert.equal(await page.locator('script[src], link[href]').count(), 0);
   await page.locator('#toggleFixedSrc').click();
-  assert.match(await page.locator('#fixedSrc').textContent(), /^# 郑钦文/);
+  assert.match(await page.locator('#fixedSrc').textContent(), /^```markmap\n# 郑钦文/);
 
   const custom = 'mindmap\n# 离线体验\n## 测试分支\n- 带括号(内容)\n- <img src=https://example.invalid/test.png onerror=alert(1)>';
   await page.locator('#src').fill(custom);

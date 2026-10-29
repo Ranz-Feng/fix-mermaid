@@ -4,8 +4,11 @@ import { Transformer } from 'markmap-lib';
 import { fixMermaid } from '../src/fixMermaid.js';
 import { cases } from './cases.mjs';
 
+function bare(code) {
+  return String(code).replace(/^\s*```(?:markmap|markdown|md)?\s*\n([\s\S]*?)\n\s*```\s*$/, '$1');
+}
 function labels(code) {
-  const { root } = new Transformer([]).transform(code);
+  const { root } = new Transformer([]).transform(bare(code));
   const result = [], todo = [root];
   while (todo.length) { const n = todo.pop(); result.push(n.content); todo.push(...(n.children || [])); }
   return result.join('\n').replace(/&#(?:x([\da-f]+)|(\d+));/gi, (_, hex, dec) => String.fromCodePoint(parseInt(hex || dec, hex ? 16 : 10)));
@@ -14,7 +17,7 @@ for (const c of cases) test(`Markmap conversion: ${c.id} ${c.title}`, () => {
   const r = fixMermaid(c.src);
   assert.equal(r.ok, c.expectFixable !== false, r.error);
   assert.equal(r.format, 'markmap');
-  if (r.ok) { assert.match(r.code, /^# /); assert.ok(labels(r.code).trim()); }
+  if (r.ok) { assert.match(r.markdown, /^# /); assert.ok(labels(r.code).trim()); }
 });
 
 test('all requested diagram families can enter the Markmap chain', () => {

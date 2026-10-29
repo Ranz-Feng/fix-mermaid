@@ -8,7 +8,7 @@
 
 In this branch, each `fixMermaid` call performs one local conversion. The backend owns the failure trigger, retry policy (up to three calls), and final error display. The tool does not call a model or render a diagram.
 
-Successful results contain `{ ok: true, format: 'markmap', code, changed, fixes, error: null }`. `code` is Markdown without fences and must be rendered by **Markmap**. `ok` means conversion succeeded; the caller must still check actual rendering.
+Successful results contain `{ ok: true, format: 'markmap', code, markdown, changed, fixes, error: null }`. `code` is a complete ```markmap block (fence included, ready to display, copy or hand to a Markmap renderer); `markdown` is the bare Markdown body for renderers. `ok` means conversion succeeded; the caller must still check actual rendering.
 
 The compatibility APIs `repairMermaidSyntax`, `safeRepairMermaid`, and `fix-mermaid/render` retain Mermaid output. The local `examples/demo.html` now previews Markmap output; the hosted demo is published by the GitHub Pages workflow below.
 

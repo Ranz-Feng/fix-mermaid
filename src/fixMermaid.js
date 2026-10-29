@@ -21,7 +21,7 @@ function looksLikeMarkmap(input) {
   return /^#\s+\S/.test(first.trim()) || /^(?:markmap|markdown|md)$/i.test(first.trim());
 }
 
-/** 一次修复调用。code 始终为 Markmap Markdown；是否能显示由渲染器确认。 */
+/** 一次修复调用。code 是带 ```markmap 围栏的 Markmap 代码块，markdown 是不带围栏的正文；能否显示由渲染器确认。 */
 export function fixMermaid(input, options = {}) {
   try {
     if (typeof input !== 'string' || !input.trim()) throw new Error('输入为空');
@@ -31,16 +31,16 @@ export function fixMermaid(input, options = {}) {
       const notes = [];
       if (options.inputFormat !== 'markmap') notes.push('输入已是 Markmap，按 Markmap 规范化');
       if (countCitations(input) - countCitations(stripCitations(input))) notes.push('去除联网角标（如 [1]、[^2]）');
-      return { ok: true, format: 'markmap', code, changed: code !== input,
+      return { ok: true, format: 'markmap', code, markdown: code.replace(/^```markmap\s*\n/, '').replace(/\n```\s*$/, ''), changed: code !== input,
         fixes: ['规范 Markmap 标题和列表', ...notes], error: null };
     }
     const repaired = repairMermaidSyntax(input, options);
-    const { code, type, citations } = mermaidToMarkmap(repaired.code, input);
+    const { code, markdown, type, citations } = mermaidToMarkmap(repaired.code, input);
     const dataChart = type === 'pie' || type.startsWith('xychart');
     const fixes = dataChart ? repaired.fixes.filter((note) => !/^(?:pie|xychart)：/.test(note)) : repaired.fixes;
     // 原文里确实删掉了引用角标时，记录一条修复说明，便于前端展示。
     const citationNote = citations > 0 ? ['去除联网角标（如 [1]、[^2]）'] : [];
-    return { ok: true, format: 'markmap', code, sourceType: type, changed: code !== input,
+    return { ok: true, format: 'markmap', code, markdown, sourceType: type, changed: code !== input,
       fixes: [...fixes, ...citationNote, ...(dataChart ? ['按原文保留数据值、单位和待定项'] : []), '转换为 Markmap 树状内容'], error: null };
   } catch (e) {
     return { ok: false, format: 'markmap', code: '', changed: false, fixes: [],
