@@ -23,7 +23,7 @@ let html = template
   .replace(/<!-- 所有依赖[\s\S]*?-->/, '<!-- GitHub Pages build. All runtime dependencies are embedded. -->')
   .replace(/<script\s+src="[^"]+"\s*>\s*<\/script>\s*/g, '')
   .replace(script[0], () => `<script>\n${javascript}\n</script>`)
-  .replaceAll('fixMermaid 本地工具', 'fixMermaid 脑图体验版');
+  .replaceAll('fixMermaid 本地工具', 'fixMermaid 图表修复体验版');
 if (/<script\b[^>]*\bsrc\s*=|<link\b[^>]*\bhref\s*=/i.test(html)) {
   throw new Error('An external script or stylesheet remains in the built page');
 }

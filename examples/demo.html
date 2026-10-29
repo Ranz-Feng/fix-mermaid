@@ -57,11 +57,11 @@
 <body>
 <main>
   <h1>fixMermaid 本地工具</h1>
-  <p class="intro">粘贴图表源码，修复并生成脑图，可缩放、拖动和折叠分支。</p>
+  <p class="intro">粘贴 Mermaid 源码，一键修复并渲染：脑图输出左→右树形大纲，流程图、甘特图、时序图、饼图、XY 图保持原生样式。</p>
   <div class="grid">
     <section class="card">
       <div class="bar">
-        <button class="primary" id="render" disabled>修复并生成脑图</button>
+        <button class="primary" id="render" disabled>修复 Mermaid 图表</button>
         <button type="button" id="sample">加载脑图示例</button>
         <select id="example" aria-label="其他图表示例">
           <option value="">加载其他图表示例…</option>
@@ -81,7 +81,7 @@
       </section>
       <section class="card after" id="markmapPanel">
         <div class="panel-head">
-          <h2 id="afterTitle">修复后 · 脑图</h2>
+          <h2 id="afterTitle">修复后</h2>
           <div class="panel-actions">
             <button type="button" id="fit">适应视图</button>
             <button type="button" id="fullscreen">全屏查看</button>
@@ -160,7 +160,7 @@ async function renderOriginal(source) {
 async function preview() {
   const source = $('src').value;
   $('render').disabled = true; $('sample').disabled = true;
-  $('state').textContent = '转换中…'; $('out').dataset.state = 'pending';
+  $('state').textContent = '修复中…'; $('out').dataset.state = 'pending';
   view?.destroy(); view = null; $('out').replaceChildren(); sourceResult(''); log([]);
   try {
     await renderOriginal(source);
@@ -187,7 +187,7 @@ async function preview() {
     $('out').append(svg);
     view = Markmap.create(svg, { duration: 0, initialExpandLevel: -1, maxWidth: 600, spacingHorizontal: 80, spacingVertical: 10 });
     await view.setData(root); await view.fit();
-    $('state').textContent = '转换成功'; $('out').dataset.state = 'ok';
+    $('state').textContent = '修复成功'; $('out').dataset.state = 'ok';
     log(result.fixes);
   } catch (error) {
     view?.destroy(); view = null;
